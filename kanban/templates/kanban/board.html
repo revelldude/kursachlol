@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ПЛАНИРОВЩИК ЗАДАЧ</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;     
+      align-items: center;
+      background: #9dd0ff;
+    }
+
+    h1 {
+      margin-top: 20px;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+
+    .board { 
+      display: flex;
+      align-items: flex-start;
+      justify-content: center; 
+    }
+    .column {
+      margin: 10px;
+      padding: 10px;
+      width: 260px;
+      min-height: 260px;
+      background: #ffffffd0;
+      border-radius: 5px;
+      display: inline-block; 
+    }
+    .task {
+      padding: 8px;
+      margin: 6px 0;
+      background: rgb(0, 140, 255);
+      border: 1px solid #1b0e68;
+      border-radius: 4px;
+      cursor: grab;
+      overflow: hidden; 
+    }
+    .tasks-container {
+       margin-top: 10px;
+       padding: 8px;
+       border: 2px solid #f7eded;
+       border-radius: 6px;
+       background: #ffffff;
+       min-height: 120px; 
+       flex-grow: 1; 
+    }
+    .task span {
+      display: block;
+      word-wrap: break-word;
+      white-space: normal;
+    }
+    
+  </style>
+</head>
+<body>
+  <h1>ПЛАНИРОВЩИК ЗАДАЧ</h1>
+  <div style="margin: 10px 0;">
+  <input id="new-task-title" type="text" placeholder="Новая задача" />
+  <input id="new-task-deadline" type="date" />
+  <select id="new-task-status">
+    <option value="1">Ожидание</option>        <!-- id статуса To Do -->
+    <option value="2">В работе</option>    <!-- id статуса In Progress -->
+    <option value="3">Выполнены</option>      <!-- id статуса Done -->
+  </select>
+  <button onclick="createTask()">Добавить</button>
+  </div>
+
+  <div id="board" class="board"></div>
+
+  <div id="edit-modal" style="display:none;
+                             position:fixed;
+                             top:0; left:0; right:0; bottom:0;
+                             background:rgba(0,0,0,0.4);
+                             align-items:center;
+                             justify-content:center;">
+  <div style="background:white; padding:16px; border-radius:8px; width:300px;">
+    <h3>Редактирование задачи</h3>
+    <label>Название:</label><br>
+    <input id="edit-title" type="text" style="width:100%; margin-bottom:8px;"><br>
+    <label>Заметка:</label><br>
+    <textarea id="edit-desc" rows="4" style="width:100%;"></textarea><br><br>
+    <label>Дедлайн:</label><br>
+    <input id="edit-deadline" type="date" style="width:100%; margin-bottom:8px;"><br>
+    <button id="edit-save-btn">Сохранить</button>
+    <button id="edit-cancel-btn">Отмена</button>
+  </div>
+
+  <script>
+    console.log('KANBAN SCRIPT LOADED');
+
+    const board = document.getElementById('board');
+    let draggedTask = null;
+    let editingTaskId = null;
+
+    const editModal = document.getElementById('edit-modal');
+    const editTitleInput = document.getElementById('edit-title');
+    const editDescInput = document.getElementById('edit-desc');
+    const editSaveBtn = document.getElementById('edit-save-btn');
+    const editCancelBtn = document.getElementById('edit-cancel-btn');
+    const editDeadlineInput = document.getElementById('edit-deadline');
+
+
+    console.log('editModal:', editModal);
+    console.log('editTitleInput:', editTitleInput);
+    console.log('editDescInput:', editDescInput);
+    console.log('editSaveBtn:', editSaveBtn);
+    console.log('editCancelBtn:', editCancelBtn);
+
+  editCancelBtn.addEventListener('click', () => {
+  editModal.style.display = 'none';
+  editingTaskId = null;
+});
+
+editSaveBtn.addEventListener('click', () => {
+  if (!editingTaskId) return;
+
+  fetch(`/api/tasks/${editingTaskId}/update/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCookie('csrftoken'),
+    },
+    body: JSON.stringify({
+      title: editTitleInput.value,
+      description: editDescInput.value,
+      deadline: editDeadlineInput.value || null, 
+    }),
+  })
+    .then(res => {
+      if (!res.ok) {
+        return res.json().then(err => { throw err; });
+      }
+      return res.json();
+    })
+    .then(data => {
+      editModal.style.display = 'none';
+      editingTaskId = null;
+      fetchBoard();  // обновляем доску
+    })
+    .catch(err => {
+      console.error('EDIT ERROR:', err);
+      alert('Не удалось сохранить изменения');
+    });
+});
+    
+    function fetchBoard() {
+      fetch('/api/statuses/')
+        .then(res => res.json())
+        .then(data => {
+         console.log('STATUSES FROM API:', data);
+         renderBoard(data);
+      });
+    }
+
+    function createTask() {
+  const titleInput = document.getElementById('new-task-title');
+  const statusSelect = document.getElementById('new-task-status');
+  const deadlineInput = document.getElementById('new-task-deadline');
+
+  const title = titleInput.value.trim();
+  const statusId = statusSelect.value;
+  const deadline = deadlineInput.value || null;
+
+  if (!title) {
+    alert('Введите название задачи');
+    return;
+  }
+
+  fetch('/api/tasks/create/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCookie('csrftoken'),
+    },
+    body: JSON.stringify({
+      title: title,
+      description: '',
+      status: statusId,
+      order: 1,
+      deadline: deadline,
+    }),
+  })
+    .then(res => {
+      if (!res.ok) {
+        throw new Error('Ошибка при создании задачи');
+      }
+      return res.json();
+    })
+    .then(data => {
+      titleInput.value = '';
+      deadlineInput.value = '';
+      fetchBoard(); 
+    })
+    .catch(err => {
+      console.error(err);
+      alert('Не удалось создать задачу');
+    });
+  }
+
+    function renderBoard(columns) {
+      console.log('RENDER BOARD CALLED with:', columns);
+      board.innerHTML = '';
+
+      columns.forEach(col => {
+        const colDiv = document.createElement('div');
+        colDiv.className = 'column';
+        colDiv.dataset.statusId = col.id;
+
+        const title = document.createElement('h3');
+        title.textContent = col.name;
+        colDiv.appendChild(title);
+
+        const tasksContainer = document.createElement('div');
+        tasksContainer.className = 'tasks-container';
+
+        console.log('TASKS IN COLUMN', col.name, col.tasks); 
+
+        col.tasks.forEach(task => {
+          const taskDiv = document.createElement('div');
+          taskDiv.className = 'task';
+          taskDiv.draggable = true;
+          taskDiv.dataset.taskId = task.id;
+
+          const titleSpan = document.createElement('span');
+          titleSpan.textContent = task.title;
+
+          const deleteBtn = document.createElement('button');
+          deleteBtn.textContent = '×';
+          deleteBtn.style.marginLeft = '8px';
+          deleteBtn.style.float = 'right';
+          deleteBtn.style.cursor = 'pointer';
+
+          const deadlineDiv = document.createElement('div');
+          deadlineDiv.style.fontSize = '12px';
+          deadlineDiv.style.marginTop = '4px';
+          deadlineDiv.textContent = task.deadline ? `Дедлайн: ${task.deadline}` : '';
+
+
+          deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); 
+            const confirmDelete = confirm('Удалить эту задачу?');
+            if (!confirmDelete) return;
+
+          const taskId = taskDiv.dataset.taskId;
+    fetch(`/api/tasks/${taskId}/delete/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken'),
+      },
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('Ошибка при удалении');
+        taskDiv.remove();
+      })
+      .catch(err => {
+        console.error('DELETE ERROR:', err);
+        alert('Не удалось удалить задачу');
+      });
+  });
+
+          taskDiv.addEventListener('dragstart', dragStart);
+          taskDiv.addEventListener('dragend', dragEnd);
+          taskDiv.addEventListener('click', () => {
+          editingTaskId = task.id;
+          editTitleInput.value = task.title;
+          editDescInput.value = task.description || '';
+          editModal.style.display = 'flex';
+          editDeadlineInput.value = task.deadline || '';
+          });
+          taskDiv.appendChild(titleSpan);
+          taskDiv.appendChild(deadlineDiv);
+          taskDiv.appendChild(deleteBtn);
+          tasksContainer.appendChild(taskDiv);
+          
+        });
+
+        colDiv.appendChild(tasksContainer);
+
+        colDiv.addEventListener('dragover', dragOver);
+        colDiv.addEventListener('drop', drop);
+
+        board.appendChild(colDiv);
+      });
+    }
+
+    function dragStart(e) {
+      draggedTask = e.target;
+      e.dataTransfer.setData('text/plain', null);
+    }
+    function dragEnd() {
+      draggedTask = null;
+    }
+    function dragOver(e) {
+      e.preventDefault();
+    }
+    function drop(e) {
+      e.preventDefault();
+      if (!draggedTask) return;
+
+        const newStatusId = this.dataset.statusId;
+        const taskId = draggedTask.dataset.taskId;
+
+        const tasksContainer = this.querySelector('.tasks-container') || this;
+        tasksContainer.appendChild(draggedTask);
+    
+
+        fetch(`/api/tasks/${taskId}/update/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken'),
+          },
+          body: JSON.stringify({status: newStatusId}),
+        }).then(res => {
+          if (!res.ok) {
+          return res.json().then(err => {
+          console.error('UPDATE ERROR:', err);
+          throw err;
+        });
+      }
+      return res.json();
+    })
+        .then(data => {
+        console.log('UPDATED TASK RESPONSE:', data);
+      })
+        .catch(err => {
+        alert('Не удалось обновить задачу');
+        fetchBoard();
+      });
+    }
+        
+
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
+
+    fetchBoard();
+  </script>
+</div>
+</body>
+</html> 
