@@ -228,6 +228,14 @@ editSaveBtn.addEventListener('click', () => {
       color: editColorInput.value || null,
     }),
   })
+
+    editModal.addEventListener('click', (e) => {
+  if (e.target === editModal) {
+    editModal.style.display = 'none';
+    editingTaskId = null;
+    }
+    })
+
     .then(res => {
       if (!res.ok) {
         return res.json().then(err => { throw err; });
