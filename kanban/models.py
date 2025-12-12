@@ -16,6 +16,8 @@ class Task(models.Model):
     status = models.ForeignKey(Status, related_name='tasks', on_delete=models.CASCADE)
     order = models.PositiveIntegerField(default=0)
     deadline = models.DateField(null=True, blank=True) 
+    color = models.CharField(max_length=7, blank=True, null=True)
+
 
     class Meta:
         ordering = ['order']

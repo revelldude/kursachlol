@@ -22,6 +22,7 @@
       display: flex;
       align-items: flex-start;
       justify-content: center; 
+      margin-top: 30px;
     }
     .column {
       margin: 10px;
@@ -55,20 +56,79 @@
       word-wrap: break-word;
       white-space: normal;
     }
+    #edit-dialog {
+      max-width: 300px;     
+      box-sizing: border-box;
+    }
     
+    #edit-desc {
+      width: 100%;
+      max-width: 100%;      
+      resize: vertical;      
+      box-sizing: border-box;
+    }
+
+    .column.summary {
+      background: #e8f5ff;
+    }
+
+    .task-input-wrapper {
+      position: relative;
+      display: inline-block;
+    }
+
+    .task-title-input {
+      width: 350px;
+      padding: 4px 28px 4px 4px;  
+      box-sizing: border-box;
+    }
+
+
+    .task-date-input {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 28px;        
+      height: 100%;
+      opacity: 0;          
+      cursor: pointer;
+    }
+
+
+    .task-date-icon {
+      position: absolute;
+      top: 50%;
+      right: 6px;
+      transform: translateY(-50%);
+      pointer-events: none; 
+      font-size: 14px;
+    }
+
   </style>
 </head>
 <body>
   <h1>ПЛАНИРОВЩИК ЗАДАЧ</h1>
   <div style="margin: 10px 0;">
-  <input id="new-task-title" type="text" placeholder="Новая задача" />
-  <input id="new-task-deadline" type="date" />
-  <select id="new-task-status">
-    <option value="1">Ожидание</option>        <!-- id статуса To Do -->
-    <option value="2">В работе</option>    <!-- id статуса In Progress -->
-    <option value="3">Выполнены</option>      <!-- id статуса Done -->
+  <div class="task-input-wrapper">
+    <input id="new-task-title"
+           type="text"
+           placeholder="Новая задача"
+           class="task-title-input" />
+
+    <input id="new-task-deadline"
+           type="date"
+           class="task-date-input" />
+
+    <span class="task-date-icon">📅</span>
+  </div>
+
+  <select id="new-task-status" style="margin-left: 10px;">
+    <option value="1">Ожидание</option>
+    <option value="2">В работе</option>
+    <option value="3">Выполнены</option>
   </select>
-  <button onclick="createTask()">Добавить</button>
+
+  <button onclick="createTask()" style="margin-left: 8px;">Добавить</button>
   </div>
 
   <div id="board" class="board"></div>
@@ -79,14 +139,17 @@
                              background:rgba(0,0,0,0.4);
                              align-items:center;
                              justify-content:center;">
-  <div style="background:white; padding:16px; border-radius:8px; width:300px;">
-    <h3>Редактирование задачи</h3>
+  <div id="edit-dialog" style="background:white; padding:16px; border-radius:8px; width:300px;">
+    <h3 id="edit-dialog-header" style="cursor: move; margin-top:0;">
+    Редактирование задачи</h3>
     <label>Название:</label><br>
     <input id="edit-title" type="text" style="width:100%; margin-bottom:8px;"><br>
     <label>Заметка:</label><br>
-    <textarea id="edit-desc" rows="4" style="width:100%;"></textarea><br><br>
+    <textarea id="edit-desc" rows="4"></textarea><br><br>
     <label>Дедлайн:</label><br>
     <input id="edit-deadline" type="date" style="width:100%; margin-bottom:8px;"><br>
+    <label>Цвет задачи:</label><br>
+    <input id="edit-color" type="color" style="width:100%; margin-bottom:8px;"><br>
     <button id="edit-save-btn">Сохранить</button>
     <button id="edit-cancel-btn">Отмена</button>
   </div>
@@ -97,6 +160,7 @@
     const board = document.getElementById('board');
     let draggedTask = null;
     let editingTaskId = null;
+    let summaryCollapsed = true;
 
     const editModal = document.getElementById('edit-modal');
     const editTitleInput = document.getElementById('edit-title');
@@ -104,7 +168,38 @@
     const editSaveBtn = document.getElementById('edit-save-btn');
     const editCancelBtn = document.getElementById('edit-cancel-btn');
     const editDeadlineInput = document.getElementById('edit-deadline');
+    const editDialog = document.getElementById('edit-dialog');
+    const editHeader = editDialog.querySelector('h3');
+    const editColorInput = document.getElementById('edit-color');
+    
 
+  let isDragging = false;
+  let dragOffsetX = 0;
+  let dragOffsetY = 0;
+
+  editHeader.addEventListener('mousedown', (e) => {
+  isDragging = true;
+    const rect = editDialog.getBoundingClientRect();
+    dragOffsetX = e.clientX - rect.left;
+    dragOffsetY = e.clientY - rect.top;
+    editDialog.style.position = 'absolute';
+    editDialog.style.margin = '0';
+  });
+
+  
+document.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+
+  const x = e.clientX - dragOffsetX;
+  const y = e.clientY - dragOffsetY;
+
+  editDialog.style.left = x + 'px';
+  editDialog.style.top = y + 'px';
+});
+
+document.addEventListener('mouseup', () => {
+  isDragging = false;
+});
 
     console.log('editModal:', editModal);
     console.log('editTitleInput:', editTitleInput);
@@ -130,6 +225,7 @@ editSaveBtn.addEventListener('click', () => {
       title: editTitleInput.value,
       description: editDescInput.value,
       deadline: editDeadlineInput.value || null, 
+      color: editColorInput.value || null,
     }),
   })
     .then(res => {
@@ -141,7 +237,7 @@ editSaveBtn.addEventListener('click', () => {
     .then(data => {
       editModal.style.display = 'none';
       editingTaskId = null;
-      fetchBoard();  // обновляем доску
+      fetchBoard();  
     })
     .catch(err => {
       console.error('EDIT ERROR:', err);
@@ -204,91 +300,148 @@ editSaveBtn.addEventListener('click', () => {
   }
 
     function renderBoard(columns) {
-      console.log('RENDER BOARD CALLED with:', columns);
-      board.innerHTML = '';
+  console.log('RENDER BOARD CALLED with:', columns);
+  board.innerHTML = '';
 
-      columns.forEach(col => {
-        const colDiv = document.createElement('div');
-        colDiv.className = 'column';
-        colDiv.dataset.statusId = col.id;
+  const summaryCol = document.createElement('div');
+  summaryCol.className = 'column summary';
+  summaryCol.style.order = '0';
 
-        const title = document.createElement('h3');
-        title.textContent = col.name;
-        colDiv.appendChild(title);
+  const summaryHeader = document.createElement('h3');
+  summaryHeader.textContent = 'Все задачи';
 
-        const tasksContainer = document.createElement('div');
-        tasksContainer.className = 'tasks-container';
+  const toggleBtn = document.createElement('button');
+  toggleBtn.textContent = '−';
+  toggleBtn.style.float = 'right';
 
-        console.log('TASKS IN COLUMN', col.name, col.tasks); 
+  const summaryTasks = document.createElement('div');
+  summaryTasks.className = 'tasks-container';
+  summaryTasks.style.display = summaryCollapsed ? 'none' : 'block';  
+  toggleBtn.textContent = summaryCollapsed ? '+' : '−';
+  
+  summaryHeader.appendChild(toggleBtn);
+  summaryCol.appendChild(summaryHeader);
+  summaryCol.appendChild(summaryTasks);
+  board.appendChild(summaryCol);
 
-        col.tasks.forEach(task => {
-          const taskDiv = document.createElement('div');
-          taskDiv.className = 'task';
-          taskDiv.draggable = true;
-          taskDiv.dataset.taskId = task.id;
-
-          const titleSpan = document.createElement('span');
-          titleSpan.textContent = task.title;
-
-          const deleteBtn = document.createElement('button');
-          deleteBtn.textContent = '×';
-          deleteBtn.style.marginLeft = '8px';
-          deleteBtn.style.float = 'right';
-          deleteBtn.style.cursor = 'pointer';
-
-          const deadlineDiv = document.createElement('div');
-          deadlineDiv.style.fontSize = '12px';
-          deadlineDiv.style.marginTop = '4px';
-          deadlineDiv.textContent = task.deadline ? `Дедлайн: ${task.deadline}` : '';
-
-
-          deleteBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); 
-            const confirmDelete = confirm('Удалить эту задачу?');
-            if (!confirmDelete) return;
-
-          const taskId = taskDiv.dataset.taskId;
-    fetch(`/api/tasks/${taskId}/delete/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': getCookie('csrftoken'),
-      },
-    })
-      .then(res => {
-        if (!res.ok) throw new Error('Ошибка при удалении');
-        taskDiv.remove();
-      })
-      .catch(err => {
-        console.error('DELETE ERROR:', err);
-        alert('Не удалось удалить задачу');
-      });
+  toggleBtn.addEventListener('click', () => {
+    summaryCollapsed = !summaryCollapsed;
+    summaryTasks.style.display = summaryCollapsed ? 'none' : 'block';
+    toggleBtn.textContent = summaryCollapsed ? '+' : '−';
   });
 
-          taskDiv.addEventListener('dragstart', dragStart);
-          taskDiv.addEventListener('dragend', dragEnd);
-          taskDiv.addEventListener('click', () => {
-          editingTaskId = task.id;
-          editTitleInput.value = task.title;
-          editDescInput.value = task.description || '';
-          editModal.style.display = 'flex';
-          editDeadlineInput.value = task.deadline || '';
+  columns.forEach(col => {
+    const colDiv = document.createElement('div');
+    colDiv.className = 'column';
+    colDiv.dataset.statusId = col.id;
+    colDiv.style.order = '1';
+
+    const title = document.createElement('h3');
+    title.textContent = col.name;
+    colDiv.appendChild(title);
+
+    const tasksContainer = document.createElement('div');
+    tasksContainer.className = 'tasks-container';
+    colDiv.appendChild(tasksContainer);
+
+    console.log('TASKS IN COLUMN', col.name, col.tasks);
+
+    col.tasks.forEach(task => {
+    
+      const taskDiv = document.createElement('div');
+      taskDiv.className = 'task';
+      taskDiv.draggable = true;
+      taskDiv.dataset.taskId = task.id;
+      taskDiv.style.backgroundColor = task.color || 'rgb(0, 140, 255)';
+
+      const titleSpan = document.createElement('span');
+      titleSpan.textContent = task.title;
+
+      const deadlineDiv = document.createElement('div');
+      deadlineDiv.style.fontSize = '12px';
+      deadlineDiv.style.marginTop = '4px';
+      deadlineDiv.textContent = task.deadline ? `Дедлайн: ${task.deadline}` : '';
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.textContent = '×';
+      deleteBtn.style.marginLeft = '8px';
+      deleteBtn.style.float = 'right';
+      deleteBtn.style.cursor = 'pointer';
+
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+
+        const taskId = taskDiv.dataset.taskId;
+        fetch(`/api/tasks/${taskId}/delete/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken'),
+          },
+        })
+          .then(res => {
+            if (!res.ok) throw new Error('Ошибка при удалении');
+            taskDiv.remove();
+          const summaryCard = document.querySelector(
+        `.column.summary .task[data-task-id="${taskId}"]`
+      );
+      if (summaryCard) {
+        summaryCard.remove();
+      }
+          })
+          .catch(err => {
+            console.error('DELETE ERROR:', err);
+            alert('Не удалось удалить задачу');
           });
-          taskDiv.appendChild(titleSpan);
-          taskDiv.appendChild(deadlineDiv);
-          taskDiv.appendChild(deleteBtn);
-          tasksContainer.appendChild(taskDiv);
-          
-        });
-
-        colDiv.appendChild(tasksContainer);
-
-        colDiv.addEventListener('dragover', dragOver);
-        colDiv.addEventListener('drop', drop);
-
-        board.appendChild(colDiv);
       });
-    }
+
+      taskDiv.addEventListener('dragstart', dragStart);
+      taskDiv.addEventListener('dragend', dragEnd);
+      taskDiv.addEventListener('click', () => {
+        editingTaskId = task.id;
+        editTitleInput.value = task.title;
+        editDescInput.value = task.description || '';
+        editDeadlineInput.value = task.deadline || '';
+        editColorInput.value = task.color || '#008cff'; 
+        editModal.style.display = 'flex';
+      });
+
+      taskDiv.appendChild(titleSpan);
+      taskDiv.appendChild(deadlineDiv);
+      taskDiv.appendChild(deleteBtn);
+      tasksContainer.appendChild(taskDiv);
+
+      const summaryTaskDiv = document.createElement('div');
+      summaryTaskDiv.className = 'task';
+      summaryTaskDiv.dataset.taskId = task.id; 
+      summaryTaskDiv.style.backgroundColor = task.color || 'rgb(0, 140, 255)';
+
+      const summaryTitle = document.createElement('span');
+      summaryTitle.textContent = task.title;
+      summaryTaskDiv.appendChild(summaryTitle);
+
+      const summaryDeadline = document.createElement('div');
+      summaryDeadline.style.fontSize = '12px';
+      summaryDeadline.style.marginTop = '4px';
+      summaryDeadline.textContent = task.deadline ? `Дедлайн: ${task.deadline}` : '';
+      summaryTaskDiv.appendChild(summaryDeadline);
+
+      summaryTaskDiv.addEventListener('click', () => {
+        editingTaskId = task.id;
+        editTitleInput.value = task.title;
+        editDescInput.value = task.description || '';
+        editDeadlineInput.value = task.deadline || '';
+        editModal.style.display = 'flex';
+      });
+
+      summaryTasks.appendChild(summaryTaskDiv);
+    });
+
+    colDiv.addEventListener('dragover', dragOver);
+    colDiv.addEventListener('drop', drop);
+    board.appendChild(colDiv);
+  });
+}
 
     function dragStart(e) {
       draggedTask = e.target;
@@ -357,3 +510,4 @@ editSaveBtn.addEventListener('click', () => {
 </div>
 </body>
 </html> 
+
