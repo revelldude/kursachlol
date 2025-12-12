@@ -1,0 +1,52 @@
+{% extends 'kanban/base.html' %}
+
+{% block title %}ПЛАНИРОВЩИК ЗАДАЧ - Доски{% endblock %}
+
+{% block content %}
+  <h1>ДОБАВЛЕНИЕ ДОСОК</h1>
+
+  <div class="boards-form">
+    <h2>Создать новую доску</h2>
+    <div class="form-group">
+      <label for="board-name">Название доски:</label>
+      <input type="text" id="board-name" placeholder="Введите название доски">
+    </div>
+    
+    <div class="form-group">
+      <label for="board-description">Описание доски:</label>
+      <input type="text" id="board-description" placeholder="Введите описание (необязательно)">
+    </div>
+    
+    <button onclick="createBoard()" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
+        Создать доску
+    </button>
+  </div>
+
+  <script>
+    // Загрузка навигации
+    fetch('navigation.html')
+      .then(response => response.text())
+      .then(data => {
+        document.getElementById('nav-placeholder').innerHTML = data;
+      });
+
+    function createBoard() {
+      const name = document.getElementById('board-name').value.trim();
+      const description = document.getElementById('board-description').value.trim();
+      
+      if (!name) {
+        alert('Введите название доски');
+        return;
+      }
+      
+      // Здесь будет логика создания доски
+      console.log('Создание доски:', { name, description });
+      alert(`Доска "${name}" создана!`);
+      
+      // Очистка формы
+      document.getElementById('board-name').value = '';
+      document.getElementById('board-description').value = '';
+    }
+  </script>
+
+{% endblock %}

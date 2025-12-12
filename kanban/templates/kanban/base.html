@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>{% block title %}ПЛАНИРОВЩИК ЗАДАЧ{% endblock %}</title>
+  <style>
+    body {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;     
+  align-items: center;
+  background: #9dd0ff;
+}
+
+h1 {
+  margin-top: 20px;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.board { 
+  display: flex;
+  align-items: flex-start;
+  justify-content: center; 
+  margin-top: 30px;
+}
+
+.column {
+  margin: 10px;
+  padding: 10px;
+  width: 260px;
+  min-height: 260px;
+  background: #ffffffd0;
+  border-radius: 5px;
+  display: inline-block; 
+}
+
+.task {
+  padding: 8px;
+  margin: 6px 0;
+  background: rgb(0, 140, 255);
+  border: 1px solid #1b0e68;
+  border-radius: 4px;
+  cursor: grab;
+  overflow: hidden; 
+}
+
+.tasks-container {
+   margin-top: 10px;
+   padding: 8px;
+   border: 2px solid #f7eded;
+  border-radius: 6px;
+  background: #ffffff;
+  min-height: 120px; 
+  flex-grow: 1; 
+}
+
+.task span {
+  display: block;
+  word-wrap: break-word;
+  white-space: normal;
+}
+
+#edit-dialog {
+  max-width: 300px;     
+  box-sizing: border-box;
+}
+
+#edit-desc {
+  width: 100%;
+  max-width: 100%;      
+  resize: vertical;      
+  box-sizing: border-box;
+}
+
+.column.summary {
+  background: #e8f5ff;
+}
+
+.task-input-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.task-title-input {
+  width: 350px;
+  padding: 4px 28px 4px 4px;  
+  box-sizing: border-box;
+}
+
+.task-date-input {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 28px;        
+  height: 100%;
+  opacity: 0;          
+  cursor: pointer;
+}
+
+.task-date-icon {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  pointer-events: none; 
+  font-size: 14px;
+}
+
+.welcome-section {
+  text-align: center;
+  max-width: 600px;
+  margin: 40px auto;
+  padding: 20px;
+  background: #ffffffd0;
+  border-radius: 8px;
+}
+
+.boards-form {
+  max-width: 500px;
+  margin: 40px auto;
+  padding: 20px;
+  background: #ffffffd0;
+  border-radius: 8px;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+/* Навигация */
+nav {
+  background: #6ba8e0;
+  padding: 10px 0;
+  width: 100%;
+}
+
+.nav-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+
+.nav-link {
+  color: white;
+  text-decoration: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+}
+
+.nav-link:hover {
+  background: #5a97d0;
+}
+  </style>
+</head>
+<body>
+  <!-- Навигация -->
+  <nav style="background: #6ba8e0; padding: 10px 0; width: 100%;">
+    <div style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: center; gap: 20px;">
+      <a href="/" 
+         style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px;" 
+         onmouseover="this.style.background='#5a97d0'" 
+         onmouseout="this.style.background='transparent'">
+        Главная
+      </a>
+      <a href="/boards"
+         style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px;"
+         onmouseover="this.style.background='#5a97d0'" 
+         onmouseout="this.style.background='transparent'">
+        Добавить доски
+      </a>
+    </div>
+  </nav>
+
+  {% block content %}
+  {% endblock %}
+
+  {% block scripts %}
+  {% endblock %}
+</body>
+</html>

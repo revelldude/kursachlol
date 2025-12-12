@@ -9,6 +9,12 @@ from datetime import date
 from django.views.decorators.csrf import ensure_csrf_cookie
 
 @ensure_csrf_cookie
+def index(request):
+    return render(request, 'kanban/index.html')
+
+def kanban_boards(request):
+    return render(request, 'kanban/boards.html')
+
 def kanban_board(request):
     return render(request, 'kanban/board.html')
 
