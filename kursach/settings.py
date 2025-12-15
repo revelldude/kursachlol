@@ -10,6 +10,11 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
 
 
 INSTALLED_APPS = [
@@ -91,6 +96,17 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+ALLOWED_FILE_TYPES = [
+    'image/jpeg', 'image/png', 'image/gif',  # Изображения
+    'application/pdf',  # PDF
+    'application/msword',  # DOC
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',  # DOCX
+    'application/vnd.ms-excel',  # XLS
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',  # XLSX
+    'text/plain',  # TXT
+    'application/zip',  # ZIP
+    'application/x-rar-compressed',  # RAR
+]
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/

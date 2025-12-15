@@ -3,18 +3,25 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib import messages
+from django.conf import settings 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status as http_status
+from rest_framework import status 
 from rest_framework.permissions import IsAuthenticated
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
 from datetime import date
-from .models import Board, Status, Task
-from .serializers import StatusSerializer, TaskSerializer
+from .models import Board, Status, Task, TaskFile
+from .serializers import StatusSerializer, TaskSerializer, TaskFileSerializer
 from django.core import serializers
 from datetime import datetime, timedelta
 from django.utils import timezone
+from rest_framework.parsers import MultiPartParser, FormParser
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+import os
+
 
 # ===== АУТЕНТИФИКАЦИЯ =====
 
@@ -102,101 +109,6 @@ def create_board(request):
 def board_view(request, board_id):
     board = get_object_or_404(Board, id=board_id, user=request.user)
     return render(request, 'kanban/board.html', {'board': board})
-
-
-@login_required
-# ... остальной код views.py ...
-
-@login_required
-def calendar_view(request, year=None, month=None):
-    # Получаем текущий год и месяц если не указаны
-    from datetime import datetime
-    now = datetime.now()
-    year = year or now.year
-    month = month or now.month
-    
-    # Получаем все задачи пользователя с дедлайнами
-    tasks = Task.objects.filter(
-        board__user=request.user,
-        deadline__isnull=False
-    ).select_related('board', 'status')
-    
-    # Создаем структуру для календаря
-    import calendar
-    cal = calendar.monthcalendar(year, month)
-    
-    # Создаем словарь задач по дням
-    tasks_by_day = {}
-    for task in tasks:
-        if task.deadline:
-            day_key = task.deadline.strftime('%Y-%m-%d')
-            if day_key not in tasks_by_day:
-                tasks_by_day[day_key] = []
-            tasks_by_day[day_key].append(task)
-    
-    # Получаем названия месяцев
-    month_name = calendar.month_name[month]
-    
-    # Предыдущий и следующий месяц
-    if month == 1:
-        prev_month, prev_year = 12, year - 1
-    else:
-        prev_month, prev_year = month - 1, year
-    
-    if month == 12:
-        next_month, next_year = 1, year + 1
-    else:
-        next_month, next_year = month + 1, year
-    
-    context = {
-        'year': year,
-        'month': month,
-        'month_name': month_name,
-        'calendar': cal,
-        'tasks_by_day': tasks_by_day,
-        'prev_year': prev_year,
-        'prev_month': prev_month,
-        'next_year': next_year,
-        'next_month': next_month,
-        'today': now.date(),
-    }
-    
-    return render(request, 'kanban/calendar.html', context)
-
-@login_required
-def tasks_by_date_api(request):
-    """API для получения задач по дате"""
-    date_str = request.GET.get('date')
-    if not date_str:
-        return JsonResponse({'error': 'Date parameter required'}, status=400)
-    
-    try:
-        from datetime import datetime
-        date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
-        
-        tasks = Task.objects.filter(
-            board__user=request.user,
-            deadline=date_obj
-        ).select_related('board', 'status')
-        
-        tasks_data = []
-        for task in tasks:
-            tasks_data.append({
-                'id': task.id,
-                'title': task.title,
-                'description': task.description,
-                'deadline': task.deadline.strftime('%Y-%m-%d') if task.deadline else None,
-                'color': task.color,
-                'board_name': task.board.name if task.board else None,
-                'status_name': task.status.name if task.status else None,
-                'status_color': '#4CAF50' if task.status and task.status.name == 'Выполнены' else 
-                               '#FF9800' if task.status and task.status.name == 'В работе' else '#9E9E9E',
-            })
-        
-        return JsonResponse(tasks_data, safe=False)
-    
-    except ValueError:
-        return JsonResponse({'error': 'Invalid date format. Use YYYY-MM-DD'}, status=400)
     
 @login_required
 def mini_calendar_api(request):
@@ -208,9 +120,6 @@ def mini_calendar_api(request):
     now = datetime.now()
     year = int(year) if year else now.year
     month = int(month) if month else now.month
-    
-    import calendar
-    cal = calendar.monthcalendar(year, month)
     
     # Получаем задачи на месяц
     from django.db.models import Q
@@ -242,40 +151,34 @@ def mini_calendar_api(request):
     return JsonResponse({
         'year': year,
         'month': month,
-        'month_name': calendar.month_name[month],
-        'calendar': cal,
         'tasks_by_day': tasks_by_day,
     })
     
+from django.http import JsonResponse
+from datetime import datetime
+
 @login_required
-def board_mini_calendar_api(request):
-    """API для мини-календаря конкретной доски"""
-    board_id = request.GET.get('board_id')
-    year = request.GET.get('year')
-    month = request.GET.get('month')
+def mini_calendar_api(request):
+    """API для мини-календаря (упрощенная версия)"""
+    from datetime import datetime
+    import calendar
     
     now = datetime.now()
-    year = int(year) if year else now.year
-    month = int(month) if month else now.month
-    
-    import calendar
-    cal = calendar.monthcalendar(year, month)
+    year = request.GET.get('year', now.year)
+    month = request.GET.get('month', now.month)
     
     try:
-        board = Board.objects.get(id=board_id, user=request.user)
+        year = int(year)
+        month = int(month)
         
-        # Получаем задачи этой доски на месяц
-        start_date = datetime(year, month, 1).date()
-        if month == 12:
-            end_date = datetime(year + 1, 1, 1).date()
-        else:
-            end_date = datetime(year, month + 1, 1).date()
+        cal = calendar.monthcalendar(year, month)
         
+        # Получаем задачи на месяц (простая версия)
         tasks = Task.objects.filter(
-            board=board,
+            board__user=request.user,
             deadline__isnull=False,
-            deadline__gte=start_date,
-            deadline__lt=end_date
+            deadline__year=year,
+            deadline__month=month
         )
         
         # Группируем задачи по дням
@@ -286,8 +189,7 @@ def board_mini_calendar_api(request):
                 tasks_by_day[day_key] = []
             tasks_by_day[day_key].append({
                 'id': task.id,
-                'title': task.title,
-                'color': task.color,
+                'title': task.title[:20] + '...' if len(task.title) > 20 else task.title,
             })
         
         return JsonResponse({
@@ -296,15 +198,85 @@ def board_mini_calendar_api(request):
             'month_name': calendar.month_name[month],
             'calendar': cal,
             'tasks_by_day': tasks_by_day,
-            'board_name': board.name,
         })
+    
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+@login_required
+def tasks_by_date_api(request):
+    """API для получения задач по дате"""
+    date_str = request.GET.get('date')
+    board_id = request.GET.get('board_id')
+    
+    if not date_str:
+        return JsonResponse({'error': 'Date parameter required'}, status=400)
+    
+    try:
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
         
-    except Board.DoesNotExist:
-        return JsonResponse({'error': 'Board not found or no access'}, status=404)
+        # Фильтруем задачи пользователя
+        tasks = Task.objects.filter(board__user=request.user)
+        
+        # Фильтр по дате
+        tasks = tasks.filter(deadline=date_obj)
+        
+        # Фильтр по доске если указана
+        if board_id:
+            tasks = tasks.filter(board_id=board_id)
+        
+        tasks_data = []
+        for task in tasks:
+            tasks_data.append({
+                'id': task.id,
+                'title': task.title,
+                'deadline': task.deadline.strftime('%Y-%m-%d') if task.deadline else None,
+                'color': task.color,
+                'board_name': task.board.name if task.board else None,
+                'status_name': task.status.name if task.status else None,
+            })
+        
+        return JsonResponse(tasks_data, safe=False)
+    
+    except ValueError:
+        return JsonResponse({'error': 'Invalid date format'}, status=400)
+
+
+@login_required
+def board_mini_calendar_api(request):
+    """API для мини-календаря доски (упрощенная версия)"""
+    from datetime import datetime
+    import calendar
+    
+    now = datetime.now()
+    year = request.GET.get('year', now.year)
+    month = request.GET.get('month', now.month)
+    board_id = request.GET.get('board_id')
+    
+    try:
+        year = int(year)
+        month = int(month)
+        
+        cal = calendar.monthcalendar(year, month)
+        
+        # Пустой ответ для теста
+        return JsonResponse({
+            'year': year,
+            'month': month,
+            'month_name': calendar.month_name[month],
+            'calendar': cal,
+            'tasks_by_day': {},
+        })
+    
+    except:
+        return JsonResponse({'error': 'Invalid parameters'}, status=400)
+
 
 @login_required
 def upcoming_deadlines_api(request):
-    """API для ближайших дедлайнов"""
+
+    return JsonResponse([], safe=False)
+
     board_id = request.GET.get('board_id')
     days = int(request.GET.get('days', 7))  # По умолчанию 7 дней
     
@@ -522,3 +494,99 @@ class TaskDelete(APIView):
                           status=http_status.HTTP_404_NOT_FOUND)
         task.delete()
         return Response(status=http_status.HTTP_204_NO_CONTENT)
+    
+class FileUploadAPI(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+    
+    def post(self, request, task_id):
+        try:
+            task = Task.objects.get(id=task_id, board__user=request.user)
+        except Task.DoesNotExist:
+            return Response({"detail": "Task not found or no access"}, 
+                          status=status.HTTP_404_NOT_FOUND)
+        
+        if 'file' not in request.FILES:
+            return Response({"detail": "No file provided"}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        uploaded_file = request.FILES['file']
+        
+        # Проверка типа файла
+        if uploaded_file.content_type not in settings.ALLOWED_FILE_TYPES:
+            return Response({"detail": "File type not allowed"}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        # Проверка размера файла (макс 10MB)
+        if uploaded_file.size > 10 * 1024 * 1024:  # 10MB
+            return Response({"detail": "File size exceeds 10MB limit"}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        # Сохраняем файл
+        try:
+            task_file = TaskFile.objects.create(
+                task=task,
+                file=uploaded_file,
+                original_filename=uploaded_file.name,
+                file_size=uploaded_file.size,
+                uploaded_by=request.user
+            )
+            
+            serializer = TaskFileSerializer(task_file, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            return Response({"detail": str(e)}, 
+                          status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class FileDeleteAPI(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def delete(self, request, file_id):
+        try:
+            task_file = TaskFile.objects.get(id=file_id, task__board__user=request.user)
+            
+            # Удаляем файл
+            task_file.delete()
+            
+            return Response({"detail": "File deleted successfully"}, 
+                          status=status.HTTP_204_NO_CONTENT)
+            
+        except TaskFile.DoesNotExist:
+            return Response({"detail": "File not found or no access"}, 
+                          status=status.HTTP_404_NOT_FOUND)
+        
+        # ... предыдущий код views.py ...
+
+class FileDeleteAPI(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def delete(self, request, file_id):
+        try:
+            task_file = TaskFile.objects.get(id=file_id, task__board__user=request.user)
+            
+            # Удаляем файл
+            task_file.delete()
+            
+            return Response({"detail": "File deleted successfully"}, 
+                          status=status.HTTP_204_NO_CONTENT)
+            
+        except TaskFile.DoesNotExist:
+            return Response({"detail": "File not found or no access"}, 
+                          status=status.HTTP_404_NOT_FOUND)
+
+# Класс TaskFilesAPI должен быть на том же уровне отступа, что и другие классы
+class TaskFilesAPI(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, task_id):
+        try:
+            task = Task.objects.get(id=task_id, board__user=request.user)
+            files = task.files.all()
+            serializer = TaskFileSerializer(files, many=True, context={'request': request})
+            return Response(serializer.data)
+        except Task.DoesNotExist:
+            return Response({"detail": "Task not found or no access"}, 
+                          status=status.HTTP_404_NOT_FOUND)
+
+# Конец файла - больше ничего после этого

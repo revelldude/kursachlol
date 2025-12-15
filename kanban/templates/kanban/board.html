@@ -3,383 +3,844 @@
 {% block title %}ПЛАНИРОВЩИК ЗАДАЧ - {{ board.name }}{% endblock %}
 
 {% block content %}
-  <div style="display: flex; gap: 30px; max-width: 1400px; margin: 0 auto; padding: 20px;">
-    
-    <!-- Левая колонка - мини-календарь -->
-    <div style="width: 300px; flex-shrink: 0;">
-      <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px;">
-        <h3 style="margin-top: 0; text-align: center; color: #333;">
-          📅 Календарь задач
-        </h3>
-        
-        <!-- Навигация месяца -->
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-          <button onclick="changeCalendarMonth(-1)" style="background: none; border: none; font-size: 18px; cursor: pointer;">←</button>
-          <span id="calendar-month" style="font-weight: bold;"></span>
-          <button onclick="changeCalendarMonth(1)" style="background: none; border: none; font-size: 18px; cursor: pointer;">→</button>
-        </div>
-        
-        <!-- Дни недели -->
-        <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 2px;">
-          <div style="text-align: center; font-size: 12px; font-weight: bold; color: #ff4444;">Пн</div>
-          <div style="text-align: center; font-size: 12px; font-weight: bold;">Вт</div>
-          <div style="text-align: center; font-size: 12px; font-weight: bold;">Ср</div>
-          <div style="text-align: center; font-size: 12px; font-weight: bold;">Чт</div>
-          <div style="text-align: center; font-size: 12px; font-weight: bold;">Пт</div>
-          <div style="text-align: center; font-size: 12px; font-weight: bold;">Сб</div>
-          <div style="text-align: center; font-size: 12px; font-weight: bold; color: #4444ff;">Вс</div>
-        </div>
-        
-        <!-- Календарь -->
-        <div id="board-mini-calendar" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;">
-          <!-- Заполняется JavaScript -->
-        </div>
-        
-        <!-- Переход к полному календарю -->
-        <div style="text-align: center; margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee;">
-          <a href="{% url 'calendar' %}" style="font-size: 12px; color: #6ba8e0; text-decoration: none;">
-            Полный календарь →
-          </a>
-        </div>
-      </div>
-      
-      <!-- Ближайшие дедлайны -->
-      <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-        <h4 style="margin-top: 0; color: #333;">⏰ Ближайшие дедлайны</h4>
-        <div id="upcoming-deadlines">
-          <!-- Заполняется JavaScript -->
-        </div>
-      </div>
+  <h1>ПЛАНИРОВЩИК ЗАДАЧ - {{ board.name }}</h1>
+  
+  <!-- Скрытый элемент с ID доски для JavaScript -->
+  <div id="board-data" data-board-id="{{ board.id }}" style="display: none;"></div>
+  
+  <div style="margin: 10px 0;">
+    <div class="task-input-wrapper">
+      <input id="new-task-title"
+             type="text"
+             placeholder="Новая задача"
+             class="task-title-input" />
+
+      <input id="new-task-deadline"
+             type="date"
+             class="task-date-input" />
+
+      <span class="task-date-icon">📅</span>
     </div>
-    
-    <!-- Правая колонка - доска задач -->
-    <div style="flex-grow: 1;">
-      <h1 style="margin-top: 0;">ПЛАНИРОВЩИК ЗАДАЧ - {{ board.name }}</h1>
-      
-      <!-- Скрытый элемент с ID доски для JavaScript -->
-      <div id="board-data" data-board-id="{{ board.id }}" style="display: none;"></div>
-      
-      <!-- Форма добавления задачи -->
-      <div style="margin: 10px 0 30px 0; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-          <div style="flex-grow: 1;">
-            <input id="new-task-title"
-                   type="text"
-                   placeholder="Новая задача"
-                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px;" />
-          </div>
-          
-          <div class="task-input-wrapper" style="position: relative;">
-            <input id="new-task-deadline"
-                   type="date"
-                   style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px;" />
-            <span style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none;">
-              📅
-            </span>
-          </div>
 
-          <select id="new-task-status" style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px;">
-            <option value="">Выберите статус...</option>
-          </select>
+    <select id="new-task-status" style="margin-left: 10px;">
+      <option value="">Выберите статус...</option>
+    </select>
 
-          <button onclick="createTask()" 
-                  style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">
-            Добавить
-          </button>
-        </div>
-      </div>
-
-      <!-- Доска задач -->
-      <div id="board" class="board"></div>
-    </div>
+    <button onclick="createTask()" style="margin-left: 8px;">Добавить</button>
   </div>
 
+  <div id="board" class="board"></div>
+
   <!-- Модальное окно редактирования задачи -->
-  <div id="edit-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.4); align-items:center; justify-content:center; z-index:10000;">
-    <!-- ... существующий код модального окна ... -->
+  <div id="edit-modal" style="display:none;
+                               position:fixed;
+                               top:0; left:0; right:0; bottom:0;
+                               background:rgba(0,0,0,0.4);
+                               align-items:center;
+                               justify-content:center;
+                               z-index:10000;">
+    <div id="edit-dialog" style="background:white; padding:16px; border-radius:8px; width:500px; max-width:90vw;">
+      <h3 id="edit-dialog-header" style="cursor: move; margin-top:0;">
+        Редактирование задачи
+      </h3>
+      <label>Название:</label><br>
+      <input id="edit-title" type="text" style="width:100%; margin-bottom:8px;"><br>
+      <label>Заметка:</label><br>
+      <textarea id="edit-desc" rows="4" style="width:100%;"></textarea><br><br>
+      <label>Дедлайн:</label><br>
+      <input id="edit-deadline" type="date" style="width:100%; margin-bottom:8px;"><br>
+      <label>Цвет задачи:</label><br>
+      <input id="edit-color" type="color" style="width:100%; margin-bottom:8px;"><br>
+      
+      <!-- Секция прикрепленных файлов -->
+      <div style="margin-top: 20px;">
+        <h4 style="margin-bottom: 10px;">📎 Прикрепленные файлы</h4>
+        <div id="file-list" style="max-height: 200px; overflow-y: auto; margin-bottom: 10px;">
+          <!-- Файлы будут загружаться здесь -->
+        </div>
+        
+        <!-- Форма загрузки файла -->
+        <div id="file-upload-section" style="border: 2px dashed #ddd; padding: 15px; text-align: center; border-radius: 5px; margin-bottom: 10px;">
+          <input type="file" id="file-input" style="display: none;" multiple>
+          <button onclick="document.getElementById('file-input').click()" 
+                  style="background: #6ba8e0; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-bottom: 10px;">
+            📁 Выбрать файлы
+          </button>
+          <div id="file-info" style="font-size: 12px; color: #666;"></div>
+          <div id="upload-progress" style="display: none; margin-top: 10px;">
+            <div style="background: #f0f0f0; border-radius: 10px; overflow: hidden;">
+              <div id="progress-bar" style="height: 20px; background: #4CAF50; width: 0; transition: width 0.3s;"></div>
+            </div>
+            <div id="progress-text" style="text-align: center; margin-top: 5px; font-size: 12px;">0%</div>
+          </div>
+        </div>
+        
+        <div style="font-size: 12px; color: #666;">
+          Максимальный размер: 10MB. Разрешенные типы: изображения, PDF, DOC, XLS, TXT, архивы.
+        </div>
+      </div>
+      
+      <div style="margin-top: 16px; display: flex; gap: 8px;">
+        <button id="edit-save-btn" style="flex: 1; padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
+          Сохранить
+        </button>
+        <button id="edit-cancel-btn" style="flex: 1; padding: 8px 16px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;">
+          Отмена
+        </button>
+      </div>
+    </div>
   </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-  // Глобальные переменные для мини-календаря
-  let currentCalendarYear = new Date().getFullYear();
-  let currentCalendarMonth = new Date().getMonth() + 1;
-  
-  // Загрузка мини-календаря
-  function loadBoardMiniCalendar() {
-    fetch(`/api/board_mini_calendar/?board_id={{ board.id }}&year=${currentCalendarYear}&month=${currentCalendarMonth}`)
-      .then(response => response.json())
-      .then(data => {
-        // Обновляем заголовок месяца
-        document.getElementById('calendar-month').textContent = `${data.month_name} ${data.year}`;
-        
-        const container = document.getElementById('board-mini-calendar');
-        container.innerHTML = '';
-        
-        // Создаем календарь
-        data.calendar.forEach(week => {
-          week.forEach(day => {
-            const dayDiv = document.createElement('div');
-            dayDiv.style.aspectRatio = '1';
-            dayDiv.style.padding = '4px';
-            dayDiv.style.textAlign = 'center';
-            dayDiv.style.fontSize = '14px';
-            dayDiv.style.cursor = 'pointer';
-            dayDiv.style.position = 'relative';
-            
-            if (day === 0) {
-              dayDiv.style.background = '#f9f9f9';
-            } else {
-              const dayStr = `${data.year}-${data.month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-              const isToday = new Date().toISOString().split('T')[0] === dayStr;
-              const hasTasks = data.tasks_by_day && data.tasks_by_day[dayStr];
-              
-              // Стили для дня
-              if (isToday) {
-                dayDiv.style.background = '#e3f2fd';
-                dayDiv.style.fontWeight = 'bold';
-                dayDiv.style.border = '2px solid #2196F3';
-              } else {
-                dayDiv.style.background = 'white';
-                dayDiv.style.border = '1px solid #eee';
-              }
-              
-              if (hasTasks) {
-                dayDiv.style.borderLeft = '3px solid #4CAF50';
-              }
-              
-              // Число дня
-              dayDiv.innerHTML = `
-                <div>${day}</div>
-                ${hasTasks ? 
-                  `<div style="position: absolute; bottom: 2px; right: 2px; width: 6px; height: 6px; 
-                            background: #4CAF50; border-radius: 50%;"></div>` 
-                  : ''}
-              `;
-              
-              // Клик по дню
-              dayDiv.onclick = function() {
-                openDayTasks(dayStr);
-              };
-            }
-            
-            container.appendChild(dayDiv);
-          });
-        });
-      })
-      .catch(error => {
-        console.error('Ошибка загрузки календаря:', error);
-        if (hasTasks) {
-    dayDiv.title = `${data.tasks_by_day[dayStr].length} задач`;
-    
-    // Подсказка с названиями задач
-    dayDiv.addEventListener('mouseenter', function(e) {
-        if (data.tasks_by_day[dayStr]) {
-            const tooltip = document.createElement('div');
-            tooltip.style.position = 'absolute';
-            tooltip.style.background = 'white';
-            tooltip.style.padding = '8px';
-            tooltip.style.borderRadius = '4px';
-            tooltip.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
-            tooltip.style.zIndex = '1000';
-            tooltip.style.maxWidth = '200px';
-            tooltip.style.fontSize = '12px';
-            
-            let tasksText = '<strong>Задачи:</strong><br>';
-            data.tasks_by_day[dayStr].forEach(task => {
-                tasksText += `• ${task.title}<br>`;
-            });
-            tooltip.innerHTML = tasksText;
-            
-            dayDiv.appendChild(tooltip);
-        }
-    });
-    
-    dayDiv.addEventListener('mouseleave', function() {
-        const tooltip = this.querySelector('div[style*="position: absolute"]');
-        if (tooltip) {
-            tooltip.remove();
-        }
-    });
-}
-      });
-  }
-  
-  // Смена месяца в мини-календаре
-  function changeCalendarMonth(delta) {
-    currentCalendarMonth += delta;
-    
-    if (currentCalendarMonth > 12) {
-      currentCalendarMonth = 1;
-      currentCalendarYear++;
-    } else if (currentCalendarMonth < 1) {
-      currentCalendarMonth = 12;
-      currentCalendarYear--;
+  console.log('KANBAN SCRIPT LOADED');
+
+  // Получаем элементы DOM
+  const board = document.getElementById('board');
+  const currentBoardId = document.getElementById('board-data').dataset.boardId;
+  let draggedTask = null;
+  let editingTaskId = null;
+  let summaryCollapsed = true;
+  let availableStatuses = []; // Храним статусы текущей доски
+
+  // Элементы модального окна
+  const editModal = document.getElementById('edit-modal');
+  const editTitleInput = document.getElementById('edit-title');
+  const editDescInput = document.getElementById('edit-desc');
+  const editSaveBtn = document.getElementById('edit-save-btn');
+  const editCancelBtn = document.getElementById('edit-cancel-btn');
+  const editDeadlineInput = document.getElementById('edit-deadline');
+  const editDialog = document.getElementById('edit-dialog');
+  const editHeader = editDialog.querySelector('h3');
+  const editColorInput = document.getElementById('edit-color');
+
+  // Элементы для загрузки файлов
+  const fileInput = document.getElementById('file-input');
+  const fileList = document.getElementById('file-list');
+  const fileInfo = document.getElementById('file-info');
+  const uploadProgress = document.getElementById('upload-progress');
+  const progressBar = document.getElementById('progress-bar');
+  const progressText = document.getElementById('progress-text');
+
+  // Перетаскивание модального окна
+  let isDragging = false;
+  let dragOffsetX = 0;
+  let dragOffsetY = 0;
+
+  editHeader.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    const rect = editDialog.getBoundingClientRect();
+    dragOffsetX = e.clientX - rect.left;
+    dragOffsetY = e.clientY - rect.top;
+    editDialog.style.position = 'absolute';
+    editDialog.style.margin = '0';
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+
+    const x = e.clientX - dragOffsetX;
+    const y = e.clientY - dragOffsetY;
+
+    editDialog.style.left = x + 'px';
+    editDialog.style.top = y + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    isDragging = false;
+  });
+
+  // Обработка выбора файлов
+  fileInput.addEventListener('change', function(e) {
+    const files = e.target.files;
+    if (files.length > 0) {
+      fileInfo.textContent = `Выбрано ${files.length} файл(ов)`;
+      uploadFiles(files);
     }
+  });
+
+  // Функция загрузки файлов
+  function uploadFiles(files) {
+    if (!editingTaskId) {
+      alert('Сначала сохраните задачу, чтобы прикрепить файлы');
+      return;
+    }
+
+    const formData = new FormData();
+    for (let i = 0; i < files.length; i++) {
+      formData.append('files', files[i]);
+    }
+
+    uploadProgress.style.display = 'block';
+    progressBar.style.width = '0%';
+    progressText.textContent = '0%';
+
+    const xhr = new XMLHttpRequest();
     
-    loadBoardMiniCalendar();
+    xhr.upload.addEventListener('progress', function(e) {
+      if (e.lengthComputable) {
+        const percentComplete = Math.round((e.loaded / e.total) * 100);
+        progressBar.style.width = percentComplete + '%';
+        progressText.textContent = percentComplete + '%';
+      }
+    });
+
+    xhr.addEventListener('load', function() {
+      if (xhr.status === 200) {
+        const response = JSON.parse(xhr.responseText);
+        loadTaskFiles(editingTaskId);
+        fileInput.value = '';
+        fileInfo.textContent = 'Файлы успешно загружены';
+        setTimeout(() => {
+          uploadProgress.style.display = 'none';
+        }, 2000);
+      } else {
+        alert('Ошибка при загрузке файлов');
+        uploadProgress.style.display = 'none';
+      }
+    });
+
+    xhr.addEventListener('error', function() {
+      alert('Ошибка сети при загрузке файлов');
+      uploadProgress.style.display = 'none';
+    });
+
+    xhr.open('POST', `/api/tasks/${editingTaskId}/upload/`);
+    xhr.setRequestHeader('X-CSRFToken', getCookie('csrftoken'));
+    xhr.send(formData);
   }
-  
-  // Открытие задач дня
-  function openDayTasks(dayStr) {
-    fetch(`/api/tasks/by_date/?date=${dayStr}&board_id={{ board.id }}`)
-      .then(response => response.json())
-      .then(tasks => {
-        if (tasks.length > 0) {
-          let message = `Задачи на ${dayStr}:\n`;
-          tasks.forEach(task => {
-            message += `• ${task.title} (${task.status_name || 'Без статуса'})\n`;
-          });
-          alert(message);
-        } else {
-          alert(`На ${dayStr} нет задач`);
-        }
-      });
-  }
-  
-  // Загрузка ближайших дедлайнов
-  function loadUpcomingDeadlines() {
-    fetch(`/api/upcoming_deadlines/?board_id={{ board.id }}&days=7`)
-      .then(response => response.json())
-      .then(tasks => {
-        const container = document.getElementById('upcoming-deadlines');
+
+  // Загрузка списка файлов задачи
+  function loadTaskFiles(taskId) {
+    fetch(`/api/tasks/${taskId}/files/`)
+      .then(res => res.json())
+      .then(files => {
+        fileList.innerHTML = '';
         
-        if (tasks.length === 0) {
-          container.innerHTML = '<p style="color: #666; font-size: 14px;">Нет ближайших дедлайнов</p>';
+        if (files.length === 0) {
+          fileList.innerHTML = '<p style="color: #666; font-style: italic; text-align: center; padding: 10px;">Нет прикрепленных файлов</p>';
           return;
         }
         
-        let html = '';
-        tasks.forEach(task => {
-          const daysLeft = Math.ceil((new Date(task.deadline) - new Date()) / (1000 * 60 * 60 * 24));
-          let urgencyClass = '';
+        files.forEach(file => {
+          const fileItem = document.createElement('div');
+          fileItem.style.display = 'flex';
+          fileItem.style.justifyContent = 'space-between';
+          fileItem.style.alignItems = 'center';
+          fileItem.style.padding = '8px';
+          fileItem.style.borderBottom = '1px solid #eee';
+          fileItem.style.backgroundColor = '#f8f9fa';
+          fileItem.style.borderRadius = '4px';
+          fileItem.style.marginBottom = '5px';
           
-          if (daysLeft < 0) {
-            urgencyClass = 'overdue';
-          } else if (daysLeft === 0) {
-            urgencyClass = 'today';
-          } else if (daysLeft <= 3) {
-            urgencyClass = 'urgent';
-          }
+          const fileLink = document.createElement('a');
+          fileLink.href = file.url;
+          fileLink.textContent = file.name;
+          fileLink.style.textDecoration = 'none';
+          fileLink.style.color = '#0066cc';
+          fileLink.target = '_blank';
+          fileLink.style.flexGrow = '1';
           
-          html += `
-            <div style="padding: 8px; margin-bottom: 8px; background: #f8f9fa; border-radius: 4px; border-left: 4px solid ${task.color || '#6ba8e0'};">
-              <div style="font-weight: bold; font-size: 14px;">${task.title}</div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
-                <span style="font-size: 12px; color: #666;">${task.deadline}</span>
-                <span class="deadline-badge ${urgencyClass}" style="font-size: 11px; padding: 2px 6px; border-radius: 10px; background: ${getUrgencyColor(daysLeft)}; color: white;">
-                  ${getDaysText(daysLeft)}
-                </span>
-              </div>
-            </div>
-          `;
+          const fileSize = document.createElement('span');
+          fileSize.textContent = formatFileSize(file.file_size);
+          fileSize.style.fontSize = '12px';
+          fileSize.style.color = '#666';
+          fileSize.style.marginLeft = '10px';
+          
+          const deleteBtn = document.createElement('button');
+          deleteBtn.textContent = '×';
+          deleteBtn.style.background = '#ff4444';
+          deleteBtn.style.color = 'white';
+          deleteBtn.style.border = 'none';
+          deleteBtn.style.borderRadius = '50%';
+          deleteBtn.style.width = '20px';
+          deleteBtn.style.height = '20px';
+          deleteBtn.style.cursor = 'pointer';
+          deleteBtn.style.fontSize = '14px';
+          deleteBtn.style.lineHeight = '1';
+          
+          deleteBtn.addEventListener('click', () => {
+            deleteFile(taskId, file.id);
+          });
+          
+          const fileInfoDiv = document.createElement('div');
+          fileInfoDiv.style.display = 'flex';
+          fileInfoDiv.style.alignItems = 'center';
+          fileInfoDiv.style.flexGrow = '1';
+          
+          const fileIcon = document.createElement('span');
+          fileIcon.textContent = getFileIcon(file.name);
+          fileIcon.style.marginRight = '10px';
+          fileIcon.style.fontSize = '16px';
+          
+          fileInfoDiv.appendChild(fileIcon);
+          fileInfoDiv.appendChild(fileLink);
+          fileInfoDiv.appendChild(fileSize);
+          
+          fileItem.appendChild(fileInfoDiv);
+          fileItem.appendChild(deleteBtn);
+          fileList.appendChild(fileItem);
         });
-        
-        container.innerHTML = html;
       })
-      .catch(error => {
-        console.error('Ошибка загрузки дедлайнов:', error);
+      .catch(err => {
+        console.error('Ошибка загрузки файлов:', err);
+        fileList.innerHTML = '<p style="color: red; text-align: center; padding: 10px;">Ошибка загрузки файлов</p>';
       });
   }
-  
-  // Вспомогательные функции для дедлайнов
-  function getUrgencyColor(daysLeft) {
-    if (daysLeft < 0) return '#dc3545'; // Просрочено
-    if (daysLeft === 0) return '#ff9800'; // Сегодня
-    if (daysLeft <= 3) return '#ffc107'; // Срочно
-    return '#28a745'; // Нормально
-  }
-  
-  function getDaysText(daysLeft) {
-    if (daysLeft < 0) return `Просрочено ${Math.abs(daysLeft)}д`;
-    if (daysLeft === 0) return 'Сегодня';
-    if (daysLeft === 1) return 'Завтра';
-    return `${daysLeft}д`;
-  }
-  
-  function getStatusColor(statusName) {
-    const statusColors = {
-        'Ожидание': '#9E9E9E',
-        'В работе': '#FF9800',
-        'Выполнены': '#4CAF50',
-        'Отложено': '#795548',
-        'Отменено': '#F44336'
-    };
-    return statusColors[statusName] || '#6ba8e0';
-}
-  // Загрузка мини-календаря при открытии страницы
-  document.addEventListener('DOMContentLoaded', function() {
-    loadBoardMiniCalendar();
-    loadUpcomingDeadlines();
+
+  // Получение иконки для типа файла
+  function getFileIcon(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
     
-    // Обновляем каждые 5 минут
-    setInterval(loadUpcomingDeadlines, 5 * 60 * 1000);
+    if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg'].includes(ext)) {
+      return '🖼️';
+    } else if (ext === 'pdf') {
+      return '📄';
+    } else if (['doc', 'docx'].includes(ext)) {
+      return '📝';
+    } else if (['xls', 'xlsx'].includes(ext)) {
+      return '📊';
+    } else if (ext === 'txt') {
+      return '📃';
+    } else if (['zip', 'rar', '7z'].includes(ext)) {
+      return '📦';
+    } else {
+      return '📎';
+    }
+  }
+
+  // Форматирование размера файла
+  function formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+    
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  // Удаление файла
+  function deleteFile(taskId, fileId) {
+    if (!confirm('Удалить этот файл?')) return;
+    
+    fetch(`/api/tasks/${taskId}/files/${fileId}/delete/`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': getCookie('csrftoken'),
+      },
+    })
+    .then(res => {
+      if (res.ok) {
+        loadTaskFiles(taskId);
+        // Обновляем доску, чтобы обновить иконку файлов
+        fetchBoard();
+      } else {
+        alert('Ошибка при удалении файла');
+      }
+    })
+    .catch(err => {
+      console.error('Ошибка удаления файла:', err);
+      alert('Ошибка при удалении файла');
+    });
+  }
+
+  // Закрытие модального окна
+  editCancelBtn.addEventListener('click', () => {
+    editModal.style.display = 'none';
+    editingTaskId = null;
+    fileList.innerHTML = '';
+    fileInfo.textContent = '';
   });
-  
-  // Остальной JavaScript код для доски (createTask, fetchBoard и т.д.)
-  // ... ваш существующий JavaScript код ...
+
+  // Сохранение изменений задачи
+  editSaveBtn.addEventListener('click', () => {
+    if (!editingTaskId) return;
+
+    fetch(`/api/tasks/${editingTaskId}/update/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken'),
+      },
+      body: JSON.stringify({
+        title: editTitleInput.value,
+        description: editDescInput.value,
+        deadline: editDeadlineInput.value || null,
+        color: editColorInput.value || null,
+      }),
+    })
+    .then(res => {
+      if (!res.ok) {
+        return res.text().then(text => {
+          console.error('Edit error response:', text);
+          throw new Error('Ошибка сервера');
+        });
+      }
+      return res.json();
+    })
+    .then(data => {
+      // Если задача сохранена, загружаем ее файлы
+      loadTaskFiles(editingTaskId);
+      fetchBoard();  // Обновляем доску
+    })
+    .catch(err => {
+      console.error('EDIT ERROR:', err);
+      alert('Не удалось сохранить изменения: ' + err.message);
+    });
+  });
+
+  // Закрытие модального окна по клику на фон
+  editModal.addEventListener('click', (e) => {
+    if (e.target === editModal) {
+      editModal.style.display = 'none';
+      editingTaskId = null;
+      fileList.innerHTML = '';
+      fileInfo.textContent = '';
+    }
+  });
+
+  // Загрузка данных доски
+  function fetchBoard() {
+    console.log('Загрузка доски, board_id:', currentBoardId);
+    
+    fetch(`/api/statuses/?board_id=${currentBoardId}`)
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`Ошибка HTTP: ${res.status} ${res.statusText}`);
+        }
+        return res.json();
+      })
+      .then(data => {
+        console.log('Получены статусы:', data);
+        renderBoard(data);
+        updateStatusSelect(data); // Обновляем выпадающий список
+      })
+      .catch(err => {
+        console.error('Ошибка загрузки доски:', err);
+        alert('Не удалось загрузить доску. Проверьте консоль для деталей.');
+      });
+  }
+
+  // Обновление выпадающего списка статусов
+  function updateStatusSelect(statuses) {
+    const statusSelect = document.getElementById('new-task-status');
+    statusSelect.innerHTML = ''; // Очищаем
+    
+    if (statuses.length === 0) {
+      statusSelect.innerHTML = '<option value="">Нет статусов</option>';
+      return;
+    }
+    
+    // Сохраняем статусы для использования в других функциях
+    availableStatuses = statuses;
+    
+    // Добавляем пустую опцию
+    const emptyOption = document.createElement('option');
+    emptyOption.value = '';
+    emptyOption.textContent = 'Выберите статус...';
+    statusSelect.appendChild(emptyOption);
+    
+    // Заполняем список
+    statuses.forEach(status => {
+      const option = document.createElement('option');
+      option.value = status.id;
+      option.textContent = status.name;
+      statusSelect.appendChild(option);
+    });
+    
+    console.log('Выпадающий список обновлен, статусов:', statuses.length);
+  }
+
+  // Создание новой задачи
+  function createTask() {
+    const titleInput = document.getElementById('new-task-title');
+    const statusSelect = document.getElementById('new-task-status');
+    const deadlineInput = document.getElementById('new-task-deadline');
+
+    const title = titleInput.value.trim();
+    const statusId = statusSelect.value;
+    const deadline = deadlineInput.value || null;
+
+    console.log('Создание задачи:', {
+      title: title,
+      statusId: statusId,
+      deadline: deadline,
+      boardId: currentBoardId
+    });
+
+    if (!title) {
+      alert('Введите название задачи');
+      return;
+    }
+
+    if (!statusId) {
+      alert('Выберите статус для задачи');
+      return;
+    }
+
+    fetch('/api/tasks/create/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken'),
+      },
+      body: JSON.stringify({
+        title: title,
+        description: '',
+        status: statusId,
+        order: 1,
+        deadline: deadline,
+        board: currentBoardId,
+      }),
+    })
+      .then(res => {
+        console.log('Ответ сервера, статус:', res.status, res.statusText);
+        
+        return res.text().then(text => {
+          console.log('Ответ сервера (первые 500 символов):', text.substring(0, 500));
+          
+          try {
+            return JSON.parse(text);
+          } catch (e) {
+            console.error('Ошибка парсинга JSON:', e);
+            console.error('Полный ответ:', text);
+            throw new Error('Сервер вернул некорректный JSON');
+          }
+        });
+      })
+      .then(data => {
+        console.log('Задача создана, данные:', data);
+        
+        if (data.success === false) {
+          throw new Error(data.error || data.message || 'Ошибка при создании задачи');
+        }
+        
+        // Очищаем поля
+        titleInput.value = '';
+        deadlineInput.value = '';
+        
+        // Обновляем доску
+        fetchBoard();
+        
+        // Показываем сообщение об успехе
+        if (data.message) {
+          console.log('Сообщение:', data.message);
+        }
+      })
+      .catch(err => {
+        console.error('CREATE TASK ERROR:', err);
+        alert('Не удалось создать задачу: ' + err.message);
+      });
+  }
+
+  // Отрисовка доски
+  function renderBoard(columns) {
+    console.log('Отрисовка доски, колонок:', columns.length);
+    board.innerHTML = '';
+
+    // Создаем колонку "Все задачи" (сводка)
+    const summaryCol = document.createElement('div');
+    summaryCol.className = 'column summary';
+    summaryCol.style.order = '0';
+
+    const summaryHeader = document.createElement('h3');
+    summaryHeader.textContent = 'Все задачи';
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.textContent = '−';
+    toggleBtn.style.float = 'right';
+    toggleBtn.style.marginLeft = '10px';
+    toggleBtn.style.cursor = 'pointer';
+    toggleBtn.style.background = '#6ba8e0';
+    toggleBtn.style.color = 'white';
+    toggleBtn.style.border = 'none';
+    toggleBtn.style.borderRadius = '3px';
+    toggleBtn.style.padding = '2px 8px';
+
+    const summaryTasks = document.createElement('div');
+    summaryTasks.className = 'tasks-container';
+    summaryTasks.style.display = summaryCollapsed ? 'none' : 'block';
+    toggleBtn.textContent = summaryCollapsed ? '+' : '−';
+    
+    summaryHeader.appendChild(toggleBtn);
+    summaryCol.appendChild(summaryHeader);
+    summaryCol.appendChild(summaryTasks);
+    board.appendChild(summaryCol);
+
+    toggleBtn.addEventListener('click', () => {
+      summaryCollapsed = !summaryCollapsed;
+      summaryTasks.style.display = summaryCollapsed ? 'none' : 'block';
+      toggleBtn.textContent = summaryCollapsed ? '+' : '−';
+    });
+
+    // Создаем колонки для каждого статуса
+    columns.forEach(col => {
+      const colDiv = document.createElement('div');
+      colDiv.className = 'column';
+      colDiv.dataset.statusId = col.id;
+      colDiv.style.order = '1';
+
+      const title = document.createElement('h3');
+      title.textContent = col.name;
+      colDiv.appendChild(title);
+
+      const tasksContainer = document.createElement('div');
+      tasksContainer.className = 'tasks-container';
+      colDiv.appendChild(tasksContainer);
+
+      console.log('Задачи в колонке', col.name, ':', col.tasks.length);
+
+      // Добавляем задачи в колонку
+      col.tasks.forEach(task => {
+        const taskDiv = createTaskElement(task);
+        tasksContainer.appendChild(taskDiv);
+
+        // Создаем копию задачи для сводки
+        const summaryTaskDiv = createTaskElement(task);
+        summaryTaskDiv.addEventListener('click', () => {
+          editingTaskId = task.id;
+          editTitleInput.value = task.title;
+          editDescInput.value = task.description || '';
+          editDeadlineInput.value = task.deadline || '';
+          editColorInput.value = task.color || '#008cff';
+          editModal.style.display = 'flex';
+          loadTaskFiles(task.id); // Загружаем файлы при открытии
+        });
+        summaryTasks.appendChild(summaryTaskDiv);
+      });
+
+      colDiv.addEventListener('dragover', dragOver);
+      colDiv.addEventListener('drop', drop);
+      board.appendChild(colDiv);
+    });
+  }
+
+  // Создание элемента задачи
+  function createTaskElement(task) {
+    const taskDiv = document.createElement('div');
+    taskDiv.className = 'task';
+    taskDiv.draggable = true;
+    taskDiv.dataset.taskId = task.id;
+    taskDiv.style.backgroundColor = task.color || 'rgb(0, 140, 255)';
+    taskDiv.style.position = 'relative';
+    taskDiv.style.padding = '10px 30px 10px 10px';
+    taskDiv.style.margin = '8px 0';
+    taskDiv.style.borderRadius = '4px';
+    taskDiv.style.cursor = 'grab';
+    taskDiv.style.overflow = 'visible';
+    taskDiv.style.minHeight = '60px';
+    taskDiv.style.zIndex = '1';
+
+    const titleSpan = document.createElement('span');
+    titleSpan.textContent = task.title;
+    titleSpan.style.display = 'block';
+    titleSpan.style.marginBottom = '6px';
+    titleSpan.style.fontWeight = 'bold';
+    titleSpan.style.wordBreak = 'break-word';
+    titleSpan.style.paddingRight = '20px';
+
+    const deadlineDiv = document.createElement('div');
+    deadlineDiv.style.fontSize = '12px';
+    deadlineDiv.style.color = '#333';
+    deadlineDiv.style.marginTop = '4px';
+    deadlineDiv.textContent = task.deadline ? `📅 ${task.deadline}` : '';
+
+    // Иконка файлов, если они есть
+    if (task.files && task.files.length > 0) {
+      const fileIcon = document.createElement('div');
+      fileIcon.innerHTML = '📎';
+      fileIcon.style.position = 'absolute';
+      fileIcon.style.bottom = '5px';
+      fileIcon.style.right = '5px';
+      fileIcon.style.fontSize = '12px';
+      fileIcon.title = `${task.files.length} файл(ов)`;
+      taskDiv.appendChild(fileIcon);
+    }
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.innerHTML = '×';
+    deleteBtn.style.position = 'absolute';
+    deleteBtn.style.top = '8px';
+    deleteBtn.style.right = '8px';
+    deleteBtn.style.background = 'rgba(255, 255, 255, 0.9)';
+    deleteBtn.style.color = '#ff4444';
+    deleteBtn.style.border = '1px solid #ff4444';
+    deleteBtn.style.borderRadius = '50%';
+    deleteBtn.style.width = '20px';
+    deleteBtn.style.height = '20px';
+    deleteBtn.style.cursor = 'pointer';
+    deleteBtn.style.fontSize = '16px';
+    deleteBtn.style.fontWeight = 'bold';
+    deleteBtn.style.lineHeight = '1';
+    deleteBtn.style.display = 'flex';
+    deleteBtn.style.alignItems = 'center';
+    deleteBtn.style.justifyContent = 'center';
+    deleteBtn.style.padding = '0';
+    deleteBtn.style.margin = '0';
+    deleteBtn.title = 'Удалить задачу';
+    deleteBtn.style.zIndex = '10';
+
+    // Эффекты при наведении
+    deleteBtn.onmouseover = function() {
+        this.style.background = '#ff4444';
+        this.style.color = 'white';
+    };
+    deleteBtn.onmouseout = function() {
+        this.style.background = 'rgba(255, 255, 255, 0.9)';
+        this.style.color = '#ff4444';
+    };
+
+    // Удаление задачи
+    deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        
+        const taskId = taskDiv.dataset.taskId;
+        console.log('Удаление задачи:', taskId);
+        
+        fetch(`/api/tasks/${taskId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+        })
+        .then(res => {
+            if (!res.ok) {
+                return res.text().then(text => {
+                    console.error('Delete error:', text);
+                    throw new Error('Ошибка при удалении');
+                });
+            }
+            return res.text();
+        })
+        .then(() => {
+            // Удаляем из основной доски
+            taskDiv.remove();
+            // Удаляем из сводки
+            const summaryCard = document.querySelector(
+                `.column.summary .task[data-task-id="${taskId}"]`
+            );
+            if (summaryCard) {
+                summaryCard.remove();
+            }
+            console.log('Задача удалена:', taskId);
+        })
+        .catch(err => {
+            console.error('DELETE ERROR:', err);
+            alert('Не удалось удалить задачу: ' + err.message);
+        });
+    });
+
+    taskDiv.appendChild(titleSpan);
+    taskDiv.appendChild(deadlineDiv);
+    taskDiv.appendChild(deleteBtn);
+
+    taskDiv.addEventListener('dragstart', dragStart);
+    taskDiv.addEventListener('dragend', dragEnd);
+    
+    // Клик по задаче открывает редактирование
+    taskDiv.addEventListener('click', (e) => {
+        // Если клик был по кнопке удаления - игнорируем
+        if (e.target === deleteBtn || deleteBtn.contains(e.target)) {
+            return;
+        }
+        
+        editingTaskId = task.id;
+        editTitleInput.value = task.title;
+        editDescInput.value = task.description || '';
+        editDeadlineInput.value = task.deadline || '';
+        editColorInput.value = task.color || '#008cff';
+        editModal.style.display = 'flex';
+        loadTaskFiles(task.id); // Загружаем файлы при открытии
+    });
+
+    return taskDiv;
+  }
+
+  // Drag and Drop функции
+  function dragStart(e) {
+    draggedTask = e.target;
+    e.dataTransfer.setData('text/plain', null);
+    setTimeout(() => {
+      e.target.style.opacity = '0.4';
+    }, 0);
+    console.log('Начало перетаскивания задачи:', e.target.dataset.taskId);
+  }
+
+  function dragEnd(e) {
+    e.target.style.opacity = '1';
+    draggedTask = null;
+    console.log('Конец перетаскивания');
+  }
+
+  function dragOver(e) {
+    e.preventDefault();
+  }
+
+  function drop(e) {
+    e.preventDefault();
+    if (!draggedTask) return;
+
+    draggedTask.style.opacity = '1';
+    
+    const newStatusId = this.dataset.statusId;
+    const taskId = draggedTask.dataset.taskId;
+
+    console.log('Перемещение задачи', taskId, 'в статус', newStatusId);
+
+    const tasksContainer = this.querySelector('.tasks-container') || this;
+    tasksContainer.appendChild(draggedTask);
+
+    fetch(`/api/tasks/${taskId}/update/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken'),
+      },
+      body: JSON.stringify({status: newStatusId}),
+    })
+    .then(res => {
+      if (!res.ok) {
+        return res.text().then(text => {
+          console.error('Update error:', text);
+          throw new Error('Ошибка обновления');
+        });
+      }
+      return res.json();
+    })
+    .then(data => {
+      console.log('Задача обновлена:', data);
+    })
+    .catch(err => {
+      console.error('DROP ERROR:', err);
+      alert('Не удалось обновить статус задачи: ' + err.message);
+      fetchBoard(); // Восстанавливаем оригинальное состояние
+    });
+  }
+
+  // Вспомогательная функция для получения CSRF токена
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+
+  // Загружаем доску при загрузке страницы
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM загружен, загружаем доску...');
+    fetchBoard();
+  });
 </script>
-
-<style>
-  /* Стили для мини-календаря */
-  #board-mini-calendar > div:hover {
-    transform: scale(1.05);
-    z-index: 1;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-  }
-  
-  .deadline-badge.overdue {
-    animation: pulse 2s infinite;
-  }
-  
-  @keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.7; }
-    100% { opacity: 1; }
-  }
-  .mini-calendar-day {
-    transition: all 0.2s ease;
-    cursor: pointer;
-    user-select: none;
-}
-
-.mini-calendar-day:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-
-.mini-calendar-day.today {
-    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
-    font-weight: bold;
-}
-
-.mini-calendar-day.has-tasks::after {
-    content: '';
-    position: absolute;
-    bottom: 3px;
-    right: 3px;
-    width: 6px;
-    height: 6px;
-    background: #4CAF50;
-    border-radius: 50%;
-    animation: pulse-dot 2s infinite;
-}
-
-@keyframes pulse-dot {
-    0% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.3); opacity: 0.7; }
-    100% { transform: scale(1); opacity: 1; }
-}
-
-.deadline-item {
-    transition: all 0.2s;
-    border-left-width: 4px !important;
-}
-
-.deadline-item:hover {
-    transform: translateX(5px);
-    background: #f0f7ff !important;
-}
-</style>
 {% endblock %}

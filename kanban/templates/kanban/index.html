@@ -20,14 +20,6 @@
             <p>Загрузка календаря...</p>
         </div>
     </div>
-    
-    <div style="text-align: center; margin-top: 20px;">
-        <a href="{% url 'calendar' %}" 
-           style="padding: 10px 20px; background: #6ba8e0; color: white; text-decoration: none; border-radius: 4px;">
-            Перейти к полному календарю →
-        </a>
-    </div>
-</div>
 
 <!-- Сегодняшние задачи -->
 <div style="max-width: 800px; margin: 40px auto;">
@@ -95,7 +87,7 @@
                                 <div style="aspect-ratio: 1; padding: 3px; background: white; position: relative; 
                                             cursor: pointer; border: ${isToday ? '2px solid #4CAF50' : '1px solid #eee'};
                                             ${hasTasks ? 'border-left: 3px solid #4CAF50;' : ''}"
-                                     onclick="window.location.href='/calendar/${data.year}/${data.month}/#' + ${day}">
+                                     onclick="showTasksForDate('${dayStr}')">
                                     <div style="font-size: 12px; font-weight: ${isToday ? 'bold' : 'normal'};">
                                         ${day}
                                     </div>
@@ -119,6 +111,29 @@
             .catch(error => {
                 console.error('Ошибка загрузки календаря:', error);
                 document.getElementById('mini-calendar').innerHTML = '<p style="color: red;">Ошибка загрузки календаря</p>';
+            });
+    }
+    
+    // Функция для показа задач на выбранную дату
+    function showTasksForDate(dateStr) {
+        fetch(`/api/tasks/by_date/?date=${dateStr}`)
+            .then(response => response.json())
+            .then(tasks => {
+                if (tasks.length === 0) {
+                    alert(`На ${dateStr} задач нет.`);
+                    return;
+                }
+                
+                let message = `Задачи на ${dateStr}:\n\n`;
+                tasks.forEach(task => {
+                    message += `• ${task.title} (${task.status_name || 'Без статуса'})\n`;
+                });
+                
+                alert(message);
+            })
+            .catch(error => {
+                console.error('Ошибка загрузки задач:', error);
+                alert('Ошибка загрузки задач');
             });
     }
     
@@ -152,10 +167,10 @@
                                 Доска: ${task.board_name || 'Не указана'}
                             </div>
                             <div style="display: flex; justify-content: space-between; margin-top: 15px;">
-                                <button onclick="window.location.href='/board/${task.id}/edit/'"
+                                <button onclick="window.location.href='/board/${task.board_id || 1}/'"
                                         style="padding: 5px 10px; background: #6ba8e0; color: white; 
                                                border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
-                                    Редактировать
+                                    Перейти к доске
                                 </button>
                                 <button onclick="completeTask(${task.id})"
                                         style="padding: 5px 10px; background: #4CAF50; color: white; 

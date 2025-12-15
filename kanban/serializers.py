@@ -1,32 +1,41 @@
 from rest_framework import serializers
-from .models import Status, Task
+from .models import Status, Task, TaskFile
 
-class TaskSerializer(serializers.ModelSerializer):
-    deadline = serializers.DateField(required=False, allow_null=True)
-    color = serializers.CharField(required=False, allow_null=True, max_length=7)
-    description = serializers.CharField(required=False, allow_blank=True)
-
-    class Meta:
-        model = Task
-        fields = ['id', 'title', 'description', 'status', 'order', 'deadline', 'color', 'board']
-        read_only_fields = ['id']
-
-    def validate_status(self, value):
-        # Проверяем, что статус существует
-        if not Status.objects.filter(id=value.id).exists():
-            raise serializers.ValidationError("Указанный статус не существует")
-        return value
-        
-    def validate_board(self, value):
-        # Проверяем, что доска существует
-        from .models import Board
-        if not Board.objects.filter(id=value.id).exists():
-            raise serializers.ValidationError("Указанная доска не существует")
-        return value
-    
 class StatusSerializer(serializers.ModelSerializer):
-    tasks = TaskSerializer(many=True, read_only=True)
-
+    tasks = serializers.SerializerMethodField()
+    
     class Meta:
         model = Status
-        fields = ['id', 'name', 'order', 'tasks']
+        fields = ['id', 'name', 'order', 'board', 'tasks']
+    
+    def get_tasks(self, obj):
+        # Получаем задачи для этого статуса
+        tasks = obj.tasks.all().order_by('order')
+        return TaskSerializer(tasks, many=True).data
+
+class TaskSerializer(serializers.ModelSerializer):
+    status_name = serializers.CharField(source='status.name', read_only=True)
+    file_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Task
+        fields = ['id', 'title', 'description', 'status', 'status_name', 
+                  'order', 'color', 'deadline', 'board', 'created_at', 'file_count']
+    
+    def get_file_count(self, obj):
+        return obj.files.count()
+
+class TaskFileSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+    name = serializers.CharField(source='original_filename')
+    
+    class Meta:
+        model = TaskFile
+        fields = ['id', 'name', 'url', 'file_size', 'uploaded_at', 'uploaded_by']
+        read_only_fields = ['id', 'uploaded_at', 'uploaded_by']
+    
+    def get_url(self, obj):
+        request = self.context.get('request')
+        if request and obj.file:
+            return request.build_absolute_uri(obj.file.url)
+        return obj.file.url if obj.file else None
