@@ -1,405 +1,385 @@
 {% extends 'kanban/base.html' %}
 
-{% block title %}ПЛАНИРОВЩИК ЗАДАЧ - Доска{% endblock %}
+{% block title %}ПЛАНИРОВЩИК ЗАДАЧ - {{ board.name }}{% endblock %}
 
 {% block content %}
-  <h1>ПЛАНИРОВЩИК ЗАДАЧ</h1>
-  <div style="margin: 10px 0;">
-    <div class="task-input-wrapper">
-      <input id="new-task-title"
-             type="text"
-             placeholder="Новая задача"
-             class="task-title-input" />
-
-      <input id="new-task-deadline"
-             type="date"
-             class="task-date-input" />
-
-      <span class="task-date-icon">📅</span>
+  <div style="display: flex; gap: 30px; max-width: 1400px; margin: 0 auto; padding: 20px;">
+    
+    <!-- Левая колонка - мини-календарь -->
+    <div style="width: 300px; flex-shrink: 0;">
+      <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px;">
+        <h3 style="margin-top: 0; text-align: center; color: #333;">
+          📅 Календарь задач
+        </h3>
+        
+        <!-- Навигация месяца -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <button onclick="changeCalendarMonth(-1)" style="background: none; border: none; font-size: 18px; cursor: pointer;">←</button>
+          <span id="calendar-month" style="font-weight: bold;"></span>
+          <button onclick="changeCalendarMonth(1)" style="background: none; border: none; font-size: 18px; cursor: pointer;">→</button>
+        </div>
+        
+        <!-- Дни недели -->
+        <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 2px;">
+          <div style="text-align: center; font-size: 12px; font-weight: bold; color: #ff4444;">Пн</div>
+          <div style="text-align: center; font-size: 12px; font-weight: bold;">Вт</div>
+          <div style="text-align: center; font-size: 12px; font-weight: bold;">Ср</div>
+          <div style="text-align: center; font-size: 12px; font-weight: bold;">Чт</div>
+          <div style="text-align: center; font-size: 12px; font-weight: bold;">Пт</div>
+          <div style="text-align: center; font-size: 12px; font-weight: bold;">Сб</div>
+          <div style="text-align: center; font-size: 12px; font-weight: bold; color: #4444ff;">Вс</div>
+        </div>
+        
+        <!-- Календарь -->
+        <div id="board-mini-calendar" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;">
+          <!-- Заполняется JavaScript -->
+        </div>
+        
+        <!-- Переход к полному календарю -->
+        <div style="text-align: center; margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee;">
+          <a href="{% url 'calendar' %}" style="font-size: 12px; color: #6ba8e0; text-decoration: none;">
+            Полный календарь →
+          </a>
+        </div>
+      </div>
+      
+      <!-- Ближайшие дедлайны -->
+      <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <h4 style="margin-top: 0; color: #333;">⏰ Ближайшие дедлайны</h4>
+        <div id="upcoming-deadlines">
+          <!-- Заполняется JavaScript -->
+        </div>
+      </div>
     </div>
+    
+    <!-- Правая колонка - доска задач -->
+    <div style="flex-grow: 1;">
+      <h1 style="margin-top: 0;">ПЛАНИРОВЩИК ЗАДАЧ - {{ board.name }}</h1>
+      
+      <!-- Скрытый элемент с ID доски для JavaScript -->
+      <div id="board-data" data-board-id="{{ board.id }}" style="display: none;"></div>
+      
+      <!-- Форма добавления задачи -->
+      <div style="margin: 10px 0 30px 0; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <div style="flex-grow: 1;">
+            <input id="new-task-title"
+                   type="text"
+                   placeholder="Новая задача"
+                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px;" />
+          </div>
+          
+          <div class="task-input-wrapper" style="position: relative;">
+            <input id="new-task-deadline"
+                   type="date"
+                   style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px;" />
+            <span style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none;">
+              📅
+            </span>
+          </div>
 
-    <select id="new-task-status" style="margin-left: 10px;">
-      <option value="1">Ожидание</option>
-      <option value="2">В работе</option>
-      <option value="3">Выполнены</option>
-    </select>
+          <select id="new-task-status" style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px;">
+            <option value="">Выберите статус...</option>
+          </select>
 
-    <button onclick="createTask()" style="margin-left: 8px;">Добавить</button>
+          <button onclick="createTask()" 
+                  style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">
+            Добавить
+          </button>
+        </div>
+      </div>
+
+      <!-- Доска задач -->
+      <div id="board" class="board"></div>
+    </div>
   </div>
 
-  <div id="board" class="board"></div>
-
-  <div id="edit-modal" style="display:none;
-                               position:fixed;
-                               top:0; left:0; right:0; bottom:0;
-                               background:rgba(0,0,0,0.4);
-                               align-items:center;
-                               justify-content:center;">
-    <div id="edit-dialog" style="background:white; padding:16px; border-radius:8px; width:300px;">
-      <h3 id="edit-dialog-header" style="cursor: move; margin-top:0;">
-      Редактирование задачи</h3>
-      <label>Название:</label><br>
-      <input id="edit-title" type="text" style="width:100%; margin-bottom:8px;"><br>
-      <label>Заметка:</label><br>
-      <textarea id="edit-desc" rows="4"></textarea><br><br>
-      <label>Дедлайн:</label><br>
-      <input id="edit-deadline" type="date" style="width:100%; margin-bottom:8px;"><br>
-      <label>Цвет задачи:</label><br>
-      <input id="edit-color" type="color" style="width:100%; margin-bottom:8px;"><br>
-      <button id="edit-save-btn">Сохранить</button>
-      <button id="edit-cancel-btn">Отмена</button>
-    </div>
+  <!-- Модальное окно редактирования задачи -->
+  <div id="edit-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.4); align-items:center; justify-content:center; z-index:10000;">
+    <!-- ... существующий код модального окна ... -->
   </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-  console.log('KANBAN SCRIPT LOADED');
-
-  const board = document.getElementById('board');
-  let draggedTask = null;
-  let editingTaskId = null;
-  let summaryCollapsed = true;
-
-  const editModal = document.getElementById('edit-modal');
-  const editTitleInput = document.getElementById('edit-title');
-  const editDescInput = document.getElementById('edit-desc');
-  const editSaveBtn = document.getElementById('edit-save-btn');
-  const editCancelBtn = document.getElementById('edit-cancel-btn');
-  const editDeadlineInput = document.getElementById('edit-deadline');
-  const editDialog = document.getElementById('edit-dialog');
-  const editHeader = editDialog.querySelector('h3');
-  const editColorInput = document.getElementById('edit-color');
-
-  let isDragging = false;
-  let dragOffsetX = 0;
-  let dragOffsetY = 0;
-
-  editHeader.addEventListener('mousedown', (e) => {
-    isDragging = true;
-    const rect = editDialog.getBoundingClientRect();
-    dragOffsetX = e.clientX - rect.left;
-    dragOffsetY = e.clientY - rect.top;
-    editDialog.style.position = 'absolute';
-    editDialog.style.margin = '0';
-  });
-
-  document.addEventListener('mousemove', (e) => {
-    if (!isDragging) return;
-
-    const x = e.clientX - dragOffsetX;
-    const y = e.clientY - dragOffsetY;
-
-    editDialog.style.left = x + 'px';
-    editDialog.style.top = y + 'px';
-  });
-
-  document.addEventListener('mouseup', () => {
-    isDragging = false;
-  });
-
-  editCancelBtn.addEventListener('click', () => {
-    editModal.style.display = 'none';
-    editingTaskId = null;
-  });
-
-  editSaveBtn.addEventListener('click', () => {
-    if (!editingTaskId) return;
-
-    fetch(`/api/tasks/${editingTaskId}/update/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': getCookie('csrftoken'),
-      },
-      body: JSON.stringify({
-        title: editTitleInput.value,
-        description: editDescInput.value,
-        deadline: editDeadlineInput.value || null, 
-        color: editColorInput.value || null,
-      }),
-    })
-    .then(res => {
-      if (!res.ok) {
-        return res.json().then(err => { throw err; });
-      }
-      return res.json();
-    })
-    .then(data => {
-      editModal.style.display = 'none';
-      editingTaskId = null;
-      fetchBoard();  
-    })
-    .catch(err => {
-      console.error('EDIT ERROR:', err);
-      alert('Не удалось сохранить изменения');
-    });
-  });
-
-  editModal.addEventListener('click', (e) => {
-    if (e.target === editModal) {
-      editModal.style.display = 'none';
-      editingTaskId = null;
-    }
-  });
-
-  function fetchBoard() {
-    fetch('/api/statuses/')
-      .then(res => res.json())
+  // Глобальные переменные для мини-календаря
+  let currentCalendarYear = new Date().getFullYear();
+  let currentCalendarMonth = new Date().getMonth() + 1;
+  
+  // Загрузка мини-календаря
+  function loadBoardMiniCalendar() {
+    fetch(`/api/board_mini_calendar/?board_id={{ board.id }}&year=${currentCalendarYear}&month=${currentCalendarMonth}`)
+      .then(response => response.json())
       .then(data => {
-        console.log('STATUSES FROM API:', data);
-        renderBoard(data);
-    });
-  }
-
-  function createTask() {
-    const titleInput = document.getElementById('new-task-title');
-    const statusSelect = document.getElementById('new-task-status');
-    const deadlineInput = document.getElementById('new-task-deadline');
-
-    const title = titleInput.value.trim();
-    const statusId = statusSelect.value;
-    const deadline = deadlineInput.value || null;
-
-    if (!title) {
-      alert('Введите название задачи');
-      return;
-    }
-
-    fetch('/api/tasks/create/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': getCookie('csrftoken'),
-      },
-      body: JSON.stringify({
-        title: title,
-        description: '',
-        status: statusId,
-        order: 1,
-        deadline: deadline,
-      }),
-    })
-      .then(res => {
-        if (!res.ok) {
-          throw new Error('Ошибка при создании задачи');
-        }
-        return res.json();
+        // Обновляем заголовок месяца
+        document.getElementById('calendar-month').textContent = `${data.month_name} ${data.year}`;
+        
+        const container = document.getElementById('board-mini-calendar');
+        container.innerHTML = '';
+        
+        // Создаем календарь
+        data.calendar.forEach(week => {
+          week.forEach(day => {
+            const dayDiv = document.createElement('div');
+            dayDiv.style.aspectRatio = '1';
+            dayDiv.style.padding = '4px';
+            dayDiv.style.textAlign = 'center';
+            dayDiv.style.fontSize = '14px';
+            dayDiv.style.cursor = 'pointer';
+            dayDiv.style.position = 'relative';
+            
+            if (day === 0) {
+              dayDiv.style.background = '#f9f9f9';
+            } else {
+              const dayStr = `${data.year}-${data.month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+              const isToday = new Date().toISOString().split('T')[0] === dayStr;
+              const hasTasks = data.tasks_by_day && data.tasks_by_day[dayStr];
+              
+              // Стили для дня
+              if (isToday) {
+                dayDiv.style.background = '#e3f2fd';
+                dayDiv.style.fontWeight = 'bold';
+                dayDiv.style.border = '2px solid #2196F3';
+              } else {
+                dayDiv.style.background = 'white';
+                dayDiv.style.border = '1px solid #eee';
+              }
+              
+              if (hasTasks) {
+                dayDiv.style.borderLeft = '3px solid #4CAF50';
+              }
+              
+              // Число дня
+              dayDiv.innerHTML = `
+                <div>${day}</div>
+                ${hasTasks ? 
+                  `<div style="position: absolute; bottom: 2px; right: 2px; width: 6px; height: 6px; 
+                            background: #4CAF50; border-radius: 50%;"></div>` 
+                  : ''}
+              `;
+              
+              // Клик по дню
+              dayDiv.onclick = function() {
+                openDayTasks(dayStr);
+              };
+            }
+            
+            container.appendChild(dayDiv);
+          });
+        });
       })
-      .then(data => {
-        titleInput.value = '';
-        deadlineInput.value = '';
-        fetchBoard(); 
-      })
-      .catch(err => {
-        console.error(err);
-        alert('Не удалось создать задачу');
-      });
-  }
-
-  function renderBoard(columns) {
-    console.log('RENDER BOARD CALLED with:', columns);
-    board.innerHTML = '';
-
-    const summaryCol = document.createElement('div');
-    summaryCol.className = 'column summary';
-    summaryCol.style.order = '0';
-
-    const summaryHeader = document.createElement('h3');
-    summaryHeader.textContent = 'Все задачи';
-
-    const toggleBtn = document.createElement('button');
-    toggleBtn.textContent = '−';
-    toggleBtn.style.float = 'right';
-
-    const summaryTasks = document.createElement('div');
-    summaryTasks.className = 'tasks-container';
-    summaryTasks.style.display = summaryCollapsed ? 'none' : 'block';  
-    toggleBtn.textContent = summaryCollapsed ? '+' : '−';
+      .catch(error => {
+        console.error('Ошибка загрузки календаря:', error);
+        if (hasTasks) {
+    dayDiv.title = `${data.tasks_by_day[dayStr].length} задач`;
     
-    summaryHeader.appendChild(toggleBtn);
-    summaryCol.appendChild(summaryHeader);
-    summaryCol.appendChild(summaryTasks);
-    board.appendChild(summaryCol);
-
-    toggleBtn.addEventListener('click', () => {
-      summaryCollapsed = !summaryCollapsed;
-      summaryTasks.style.display = summaryCollapsed ? 'none' : 'block';
-      toggleBtn.textContent = summaryCollapsed ? '+' : '−';
-    });
-
-    columns.forEach(col => {
-      const colDiv = document.createElement('div');
-      colDiv.className = 'column';
-      colDiv.dataset.statusId = col.id;
-      colDiv.style.order = '1';
-
-      const title = document.createElement('h3');
-      title.textContent = col.name;
-      colDiv.appendChild(title);
-
-      const tasksContainer = document.createElement('div');
-      tasksContainer.className = 'tasks-container';
-      colDiv.appendChild(tasksContainer);
-
-      console.log('TASKS IN COLUMN', col.name, col.tasks);
-
-      col.tasks.forEach(task => {
-        const taskDiv = document.createElement('div');
-        taskDiv.className = 'task';
-        taskDiv.draggable = true;
-        taskDiv.dataset.taskId = task.id;
-        taskDiv.style.backgroundColor = task.color || 'rgb(0, 140, 255)';
-
-        const titleSpan = document.createElement('span');
-        titleSpan.textContent = task.title;
-
-        const deadlineDiv = document.createElement('div');
-        deadlineDiv.style.fontSize = '12px';
-        deadlineDiv.style.marginTop = '4px';
-        deadlineDiv.textContent = task.deadline ? `Дедлайн: ${task.deadline}` : '';
-
-        const deleteBtn = document.createElement('button');
-        deleteBtn.textContent = '×';
-        deleteBtn.style.marginLeft = '8px';
-        deleteBtn.style.float = 'right';
-        deleteBtn.style.cursor = 'pointer';
-
-        deleteBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-
-          const taskId = taskDiv.dataset.taskId;
-          fetch(`/api/tasks/${taskId}/delete/`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRFToken': getCookie('csrftoken'),
-            },
-          })
-            .then(res => {
-              if (!res.ok) throw new Error('Ошибка при удалении');
-              taskDiv.remove();
-            const summaryCard = document.querySelector(
-          `.column.summary .task[data-task-id="${taskId}"]`
-        );
-        if (summaryCard) {
-          summaryCard.remove();
-        }
-            })
-            .catch(err => {
-              console.error('DELETE ERROR:', err);
-              alert('Не удалось удалить задачу');
+    // Подсказка с названиями задач
+    dayDiv.addEventListener('mouseenter', function(e) {
+        if (data.tasks_by_day[dayStr]) {
+            const tooltip = document.createElement('div');
+            tooltip.style.position = 'absolute';
+            tooltip.style.background = 'white';
+            tooltip.style.padding = '8px';
+            tooltip.style.borderRadius = '4px';
+            tooltip.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+            tooltip.style.zIndex = '1000';
+            tooltip.style.maxWidth = '200px';
+            tooltip.style.fontSize = '12px';
+            
+            let tasksText = '<strong>Задачи:</strong><br>';
+            data.tasks_by_day[dayStr].forEach(task => {
+                tasksText += `• ${task.title}<br>`;
             });
-        });
-
-        taskDiv.addEventListener('dragstart', dragStart);
-        taskDiv.addEventListener('dragend', dragEnd);
-        taskDiv.addEventListener('click', () => {
-          editingTaskId = task.id;
-          editTitleInput.value = task.title;
-          editDescInput.value = task.description || '';
-        editDeadlineInput.value = task.deadline || '';
-        editColorInput.value = task.color || '#008cff'; 
-        editModal.style.display = 'flex';
-      });
-
-      taskDiv.appendChild(titleSpan);
-      taskDiv.appendChild(deadlineDiv);
-      taskDiv.appendChild(deleteBtn);
-      tasksContainer.appendChild(taskDiv);
-
-      const summaryTaskDiv = document.createElement('div');
-      summaryTaskDiv.className = 'task';
-      summaryTaskDiv.dataset.taskId = task.id; 
-      summaryTaskDiv.style.backgroundColor = task.color || 'rgb(0, 140, 255)';
-
-      const summaryTitle = document.createElement('span');
-      summaryTitle.textContent = task.title;
-      summaryTaskDiv.appendChild(summaryTitle);
-
-      const summaryDeadline = document.createElement('div');
-      summaryDeadline.style.fontSize = '12px';
-      summaryDeadline.style.marginTop = '4px';
-      summaryDeadline.textContent = task.deadline ? `Дедлайн: ${task.deadline}` : '';
-      summaryTaskDiv.appendChild(summaryDeadline);
-
-      summaryTaskDiv.addEventListener('click', () => {
-        editingTaskId = task.id;
-        editTitleInput.value = task.title;
-        editDescInput.value = task.description || '';
-        editDeadlineInput.value = task.deadline || '';
-        editModal.style.display = 'flex';
-      });
-
-      summaryTasks.appendChild(summaryTaskDiv);
+            tooltip.innerHTML = tasksText;
+            
+            dayDiv.appendChild(tooltip);
+        }
     });
-
-    colDiv.addEventListener('dragover', dragOver);
-    colDiv.addEventListener('drop', drop);
-    board.appendChild(colDiv);
+    
+    dayDiv.addEventListener('mouseleave', function() {
+        const tooltip = this.querySelector('div[style*="position: absolute"]');
+        if (tooltip) {
+            tooltip.remove();
+        }
     });
-  }
-
-  function dragStart(e) {
-    draggedTask = e.target;
-    e.dataTransfer.setData('text/plain', null);
-  }
-  function dragEnd() {
-    draggedTask = null;
-  }
-  function dragOver(e) {
-    e.preventDefault();
-  }
-  function drop(e) {
-    e.preventDefault();
-    if (!draggedTask) return;
-
-    const newStatusId = this.dataset.statusId;
-    const taskId = draggedTask.dataset.taskId;
-
-    const tasksContainer = this.querySelector('.tasks-container') || this;
-    tasksContainer.appendChild(draggedTask);
-
-    fetch(`/api/tasks/${taskId}/update/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': getCookie('csrftoken'),
-      },
-      body: JSON.stringify({status: newStatusId}),
-    }).then(res => {
-      if (!res.ok) {
-        return res.json().then(err => {
-          console.error('UPDATE ERROR:', err);
-          throw err;
-        });
-      }
-      return res.json();
-    })
-      .then(data => {
-        console.log('UPDATED TASK RESPONSE:', data);
-      })
-      .catch(err => {
-        alert('Не удалось обновить задачу');
-        fetchBoard();
+}
       });
   }
-
-  function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-      const cookies = document.cookie.split(';');
-      for (let i = 0; i < cookies.length; i++) {
-      const cookie = cookies[i].trim();
-      if (cookie.substring(0, name.length + 1) === (name + '=')) {
-        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-        break;
-      }
+  
+  // Смена месяца в мини-календаре
+  function changeCalendarMonth(delta) {
+    currentCalendarMonth += delta;
+    
+    if (currentCalendarMonth > 12) {
+      currentCalendarMonth = 1;
+      currentCalendarYear++;
+    } else if (currentCalendarMonth < 1) {
+      currentCalendarMonth = 12;
+      currentCalendarYear--;
     }
-    return cookieValue;
+    
+    loadBoardMiniCalendar();
   }
+  
+  // Открытие задач дня
+  function openDayTasks(dayStr) {
+    fetch(`/api/tasks/by_date/?date=${dayStr}&board_id={{ board.id }}`)
+      .then(response => response.json())
+      .then(tasks => {
+        if (tasks.length > 0) {
+          let message = `Задачи на ${dayStr}:\n`;
+          tasks.forEach(task => {
+            message += `• ${task.title} (${task.status_name || 'Без статуса'})\n`;
+          });
+          alert(message);
+        } else {
+          alert(`На ${dayStr} нет задач`);
+        }
+      });
+  }
+  
+  // Загрузка ближайших дедлайнов
+  function loadUpcomingDeadlines() {
+    fetch(`/api/upcoming_deadlines/?board_id={{ board.id }}&days=7`)
+      .then(response => response.json())
+      .then(tasks => {
+        const container = document.getElementById('upcoming-deadlines');
+        
+        if (tasks.length === 0) {
+          container.innerHTML = '<p style="color: #666; font-size: 14px;">Нет ближайших дедлайнов</p>';
+          return;
+        }
+        
+        let html = '';
+        tasks.forEach(task => {
+          const daysLeft = Math.ceil((new Date(task.deadline) - new Date()) / (1000 * 60 * 60 * 24));
+          let urgencyClass = '';
+          
+          if (daysLeft < 0) {
+            urgencyClass = 'overdue';
+          } else if (daysLeft === 0) {
+            urgencyClass = 'today';
+          } else if (daysLeft <= 3) {
+            urgencyClass = 'urgent';
+          }
+          
+          html += `
+            <div style="padding: 8px; margin-bottom: 8px; background: #f8f9fa; border-radius: 4px; border-left: 4px solid ${task.color || '#6ba8e0'};">
+              <div style="font-weight: bold; font-size: 14px;">${task.title}</div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                <span style="font-size: 12px; color: #666;">${task.deadline}</span>
+                <span class="deadline-badge ${urgencyClass}" style="font-size: 11px; padding: 2px 6px; border-radius: 10px; background: ${getUrgencyColor(daysLeft)}; color: white;">
+                  ${getDaysText(daysLeft)}
+                </span>
+              </div>
+            </div>
+          `;
+        });
+        
+        container.innerHTML = html;
+      })
+      .catch(error => {
+        console.error('Ошибка загрузки дедлайнов:', error);
+      });
+  }
+  
+  // Вспомогательные функции для дедлайнов
+  function getUrgencyColor(daysLeft) {
+    if (daysLeft < 0) return '#dc3545'; // Просрочено
+    if (daysLeft === 0) return '#ff9800'; // Сегодня
+    if (daysLeft <= 3) return '#ffc107'; // Срочно
+    return '#28a745'; // Нормально
+  }
+  
+  function getDaysText(daysLeft) {
+    if (daysLeft < 0) return `Просрочено ${Math.abs(daysLeft)}д`;
+    if (daysLeft === 0) return 'Сегодня';
+    if (daysLeft === 1) return 'Завтра';
+    return `${daysLeft}д`;
+  }
+  
+  function getStatusColor(statusName) {
+    const statusColors = {
+        'Ожидание': '#9E9E9E',
+        'В работе': '#FF9800',
+        'Выполнены': '#4CAF50',
+        'Отложено': '#795548',
+        'Отменено': '#F44336'
+    };
+    return statusColors[statusName] || '#6ba8e0';
+}
+  // Загрузка мини-календаря при открытии страницы
+  document.addEventListener('DOMContentLoaded', function() {
+    loadBoardMiniCalendar();
+    loadUpcomingDeadlines();
+    
+    // Обновляем каждые 5 минут
+    setInterval(loadUpcomingDeadlines, 5 * 60 * 1000);
+  });
+  
+  // Остальной JavaScript код для доски (createTask, fetchBoard и т.д.)
+  // ... ваш существующий JavaScript код ...
+</script>
+
+<style>
+  /* Стили для мини-календаря */
+  #board-mini-calendar > div:hover {
+    transform: scale(1.05);
+    z-index: 1;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  
+  .deadline-badge.overdue {
+    animation: pulse 2s infinite;
+  }
+  
+  @keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+  }
+  .mini-calendar-day {
+    transition: all 0.2s ease;
+    cursor: pointer;
+    user-select: none;
 }
 
-  fetchBoard();
-</script>
+.mini-calendar-day:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.mini-calendar-day.today {
+    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+    font-weight: bold;
+}
+
+.mini-calendar-day.has-tasks::after {
+    content: '';
+    position: absolute;
+    bottom: 3px;
+    right: 3px;
+    width: 6px;
+    height: 6px;
+    background: #4CAF50;
+    border-radius: 50%;
+    animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.3); opacity: 0.7; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.deadline-item {
+    transition: all 0.2s;
+    border-left-width: 4px !important;
+}
+
+.deadline-item:hover {
+    transform: translateX(5px);
+    background: #f0f7ff !important;
+}
+</style>
 {% endblock %}

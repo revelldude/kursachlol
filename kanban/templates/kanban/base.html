@@ -1,7 +1,9 @@
+ {% load static %}
 <!DOCTYPE html>
 <html>
 <head>
   <title>{% block title %}ПЛАНИРОВЩИК ЗАДАЧ{% endblock %}</title>
+   {% load static %}
   <style>
     body {
   margin: 0;
@@ -36,13 +38,17 @@ h1 {
 }
 
 .task {
-  padding: 8px;
+  position: relative;
+  padding: 10px 30px 10px 10px !important; 
   margin: 6px 0;
   background: rgb(0, 140, 255);
   border: 1px solid #1b0e68;
   border-radius: 4px;
   cursor: grab;
   overflow: hidden; 
+  min-height: 60px;
+  box-sizing: border-box;
+  z-index: 1;
 }
 
 .tasks-container {
@@ -59,6 +65,7 @@ h1 {
   display: block;
   word-wrap: break-word;
   white-space: normal;
+  padding-right: 20px; 
 }
 
 #edit-dialog {
@@ -167,27 +174,122 @@ nav {
 .nav-link:hover {
   background: #5a97d0;
 }
+
+.task-delete-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(255, 255, 255, 0.9);
+    color: #ff4444;
+    border: 1px solid #ff4444;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    margin: 0;
+}
+
+.task-delete-btn:hover {
+    background: #ff4444;
+    color: white;
+    z-index: 10;
+}
+
+#edit-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.4);
+    align-items: center;
+    justify-content: center;
+    z-index: 10000 !important; /* ОЧЕНЬ высокий z-index */
+}
+
+#edit-dialog {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 320px;
+    max-width: 90%;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    z-index: 10001 !important; /* Выше чем модальный фон */
+    position: relative;
+}
+
+/* Кнопки удаления в задачах */
   </style>
 </head>
 <body>
-  <!-- Навигация -->
-  <nav style="background: #6ba8e0; padding: 10px 0; width: 100%;">
-    <div style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: center; gap: 20px;">
-      <a href="/" 
+  <!-- В навигации base.html -->
+<nav style="background: #6ba8e0; padding: 10px 0; width: 100%;">
+  <div style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 0 20px;">
+    
+    <div style="display: flex; gap: 20px;">
+      <a href="{% url 'index' %}" 
          style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px;" 
          onmouseover="this.style.background='#5a97d0'" 
          onmouseout="this.style.background='transparent'">
         Главная
       </a>
-      <a href="/boards"
+      <a href="{% url 'boards_list' %}"
          style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px;"
          onmouseover="this.style.background='#5a97d0'" 
          onmouseout="this.style.background='transparent'">
-        Добавить доски
+        Мои доски
       </a>
+      <a href="{% url 'kanban-boards' %}"
+         style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px;"
+         onmouseover="this.style.background='#5a97d0'" 
+         onmouseout="this.style.background='transparent'">
+        Создать доску
+      </a>
+      <a href="{% url 'index' %}" 
+   style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px;" 
+   onmouseover="this.style.background='#5a97d0'" 
+   onmouseout="this.style.background='transparent'">
+    🏠 Главная
+</a>
+<a href="{% url 'calendar' %}"
+   style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px;"
+   onmouseover="this.style.background='#5a97d0'" 
+   onmouseout="this.style.background='transparent'">
+    📅 Календарь
+</a>
     </div>
-  </nav>
-
+    
+    <div>
+      {% if user.is_authenticated %}
+        <span style="color: white; margin-right: 15px;">Привет, {{ user.username }}!</span>
+        <a href="{% url 'logout' %}" 
+           style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; background: #dc3545;"
+           onmouseover="this.style.background='#c82333'" 
+           onmouseout="this.style.background='#dc3545'">
+          Выйти
+        </a>
+      {% else %}
+        <a href="{% url 'login' %}" 
+           style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; margin-right: 10px;">
+          Войти
+        </a>
+        <a href="{% url 'register' %}" 
+           style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; background: #28a745;">
+          Регистрация
+        </a>
+      {% endif %}
+    </div>
+    
+  </div>
+</nav>
   {% block content %}
   {% endblock %}
 

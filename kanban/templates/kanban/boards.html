@@ -7,46 +7,30 @@
 
   <div class="boards-form">
     <h2>Создать новую доску</h2>
-    <div class="form-group">
-      <label for="board-name">Название доски:</label>
-      <input type="text" id="board-name" placeholder="Введите название доски">
-    </div>
     
-    <div class="form-group">
-      <label for="board-description">Описание доски:</label>
-      <input type="text" id="board-description" placeholder="Введите описание (необязательно)">
-    </div>
-    
-    <button onclick="createBoard()" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
+    <!-- Обычная HTML форма без JavaScript -->
+    <!-- Изменяем action на правильный URL -->
+    <form method="POST" action="{% url 'create_board' %}">
+      {% csrf_token %}
+      
+      <div class="form-group">
+        <label for="board-name">Название доски:</label>
+        <input type="text" id="board-name" name="name" placeholder="Введите название доски" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="board-description">Описание доски:</label>
+        <input type="text" id="board-description" name="description" placeholder="Введите описание (необязательно)">
+      </div>
+      
+      <button type="submit" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
         Создать доску
-    </button>
+      </button>
+      
+      <a href="{% url 'boards_list' %}" style="margin-left: 10px; padding: 10px 20px; background: #6ba8e0; color: white; text-decoration: none; border-radius: 4px;">
+        Мои доски
+      </a>
+    </form>
   </div>
-
-  <script>
-    // Загрузка навигации
-    fetch('navigation.html')
-      .then(response => response.text())
-      .then(data => {
-        document.getElementById('nav-placeholder').innerHTML = data;
-      });
-
-    function createBoard() {
-      const name = document.getElementById('board-name').value.trim();
-      const description = document.getElementById('board-description').value.trim();
-      
-      if (!name) {
-        alert('Введите название доски');
-        return;
-      }
-      
-      // Здесь будет логика создания доски
-      console.log('Создание доски:', { name, description });
-      alert(`Доска "${name}" создана!`);
-      
-      // Очистка формы
-      document.getElementById('board-name').value = '';
-      document.getElementById('board-description').value = '';
-    }
-  </script>
 
 {% endblock %}

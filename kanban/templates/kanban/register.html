@@ -1,0 +1,56 @@
+{% extends 'kanban/base.html' %}
+
+{% block title %}Регистрация{% endblock %}
+
+{% block content %}
+<div style="max-width: 400px; margin: 50px auto; padding: 30px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+    <h2 style="text-align: center; margin-bottom: 30px;">Регистрация</h2>
+    
+    {% if messages %}
+        {% for message in messages %}
+            {% if message.tags == 'error' %}
+                <div style="padding: 10px; margin-bottom: 20px; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px; color: #721c24;">
+                    {{ message }}
+                </div>
+            {% else %}
+                <div style="padding: 10px; margin-bottom: 20px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px; color: #155724;">
+                    {{ message }}
+                </div>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+    
+    <form method="POST">
+        {% csrf_token %}
+        
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Имя пользователя:</label>
+            <input type="text" name="username" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <small style="color: #666;">Только буквы, цифры и @/./+/-/_.</small>
+        </div>
+        
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Пароль:</label>
+            <input type="password" name="password1" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <small style="color: #666;">
+                • Не менее 8 символов<br>
+                • Не только цифры<br>
+                • Не слишком простой
+            </small>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Подтверждение пароля:</label>
+            <input type="password" name="password2" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+        
+        <button type="submit" style="width: 100%; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">
+            Зарегистрироваться
+        </button>
+    </form>
+    
+    <div style="margin-top: 20px; text-align: center;">
+        <p>Уже есть аккаунт? <a href="{% url 'login' %}" style="color: #4CAF50;">Войти</a></p>
+    </div>
+</div>
+{% endblock %}
