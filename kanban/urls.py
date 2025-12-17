@@ -12,7 +12,6 @@ from .views import (
     table_list, table_create, table_detail,
     add_column_ajax, add_row_ajax, delete_row_ajax, 
     update_cell_ajax, delete_table_ajax
-
 )
 
 urlpatterns = [

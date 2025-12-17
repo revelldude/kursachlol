@@ -44,11 +44,9 @@
                     </th>
                     
                     {% for column in columns %}
-                    <!-- Строка 50 - исправленная -->
-                    <th style="border-left: 2px solid #dee2e6;">
-                        <div class="d-flex justify-content-between align-items-center column-header" 
-                             data-column-id="{{ column.id }}"
-                             {% if column.width %}data-column-width="{{ column.width }}"{% endif %}>
+                    <th style="border-left: 2px solid #dee2e6; min-width: {{ column.width|default:150 }}px;" 
+                        data-column-id="{{ column.id }}">
+                        <div class="d-flex justify-content-between align-items-center column-header">
                             <span>{{ column.name }}</span>
                             <button type="button" 
                                     class="btn btn-sm btn-outline-secondary"
@@ -72,7 +70,7 @@
             </thead>
             <tbody>
                 {% for row in rows %}
-                <tr style="border-top: 1px solid #dee2e6;">
+                <tr style="border-top: 1px solid #dee2e6;" data-row-id="{{ row.id }}">
                     <td class="text-center text-muted" style="background: #f8f9fa; border-right: 2px solid #dee2e6;">
                         {{ forloop.counter }}
                         <button class="btn btn-sm btn-outline-danger ms-1"
@@ -83,15 +81,16 @@
                     </td>
                     
                     {% for column in columns %}
-                    {% with key=row.id|add:"_"|add:column.id %}
+                    {% with cell_key=row.id|stringformat:"s"|add:"-"|add:column.id|stringformat:"s" %}
                     <td class="cell-editable" 
-                        data-cell-id="{{ cells.key.id }}"
-                        onclick="editCell(this)"
+                        onclick="editCell(this, '{{ row.id }}', '{{ column.id }}')"
                         style="cursor: pointer; padding: 12px; border-left: 1px solid #dee2e6; min-height: 60px; vertical-align: top;"
                         onmouseover="this.style.backgroundColor='#f0f7ff'"
-                        onmouseout="this.style.backgroundColor='white'">
-                        {% if cells.key.content %}
-                            {{ cells.key.content|linebreaksbr }}
+                        onmouseout="this.style.backgroundColor='white'"
+                        data-row-id="{{ row.id }}"
+                        data-column-id="{{ column.id }}">
+                        {% if cells and cells|get_item:cell_key %}
+                            {{ cells|get_item:cell_key|linebreaksbr }}
                         {% else %}
                             <span class="text-muted" style="opacity: 0.6;">Нажмите для редактирования</span>
                         {% endif %}
@@ -132,7 +131,8 @@
     </div>
 </div>
 
-<!-- Модальное окно для добавления колонки -->
+<!-- Модальные окна -->
+<!-- Добавление колонки -->
 <div class="modal fade" id="addColumnModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content" style="border-radius: 8px;">
@@ -160,7 +160,7 @@
     </div>
 </div>
 
-<!-- Модальное окно для добавления строки -->
+<!-- Добавление строки -->
 <div class="modal fade" id="addRowModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content" style="border-radius: 8px;">
@@ -184,7 +184,7 @@
     </div>
 </div>
 
-<!-- Модальное окно для редактирования ячейки -->
+<!-- Редактирование ячейки -->
 <div class="modal fade" id="editCellModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content" style="border-radius: 8px;">
@@ -206,15 +206,22 @@
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
+<!-- Загрузка Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 <script>
-// Инициализация переменных
+// Глобальные переменные
 const TABLE_ID = '{{ table.id }}';
-let currentCellId = null;
+let currentCellElement = null;
+let currentRowId = null;
+let currentColumnId = null;
 
-// Функция для получения CSRF токена
+// Получение CSRF токена
+function getCSRFToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || getCookie('csrftoken');
+}
+
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -230,30 +237,12 @@ function getCookie(name) {
     return cookieValue;
 }
 
-// Устанавливаем ширину колонок после загрузки страницы
-document.addEventListener('DOMContentLoaded', function() {
-    // Устанавливаем ширину для каждой колонки
-    document.querySelectorAll('.column-header').forEach(header => {
-        const width = header.getAttribute('data-column-width');
-        if (width) {
-            header.style.minWidth = width + 'px';
-        }
-    });
-    
-    // Встроенное редактирование по двойному клику
-    document.querySelectorAll('.cell-editable').forEach(cell => {
-        cell.addEventListener('dblclick', function() {
-            editCell(this);
-        });
-    });
-});
-
 // Добавление колонки
 function addColumn() {
-    const name = document.getElementById('newColumnName').value;
+    const name = document.getElementById('newColumnName').value.trim();
     const width = document.getElementById('newColumnWidth').value;
     
-    if (!name.trim()) {
+    if (!name) {
         alert('Введите название колонки');
         return;
     }
@@ -262,37 +251,39 @@ function addColumn() {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken'),
+            'X-CSRFToken': getCSRFToken(),
         },
         body: JSON.stringify({
             table_id: TABLE_ID,
             name: name,
-            width: parseInt(width)
+            width: parseInt(width) || 200
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) throw new Error('Network error');
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             location.reload();
         } else {
-            alert('Ошибка: ' + data.error);
+            alert(data.error || 'Ошибка добавления колонки');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Ошибка добавления колонки');
+        alert('Ошибка соединения');
     });
     
-    // Закрываем модальное окно
-    const modal = bootstrap.Modal.getInstance(document.getElementById('addColumnModal'));
-    if (modal) modal.hide();
+    // Закрыть модальное окно
+    bootstrap.Modal.getInstance(document.getElementById('addColumnModal')).hide();
 }
 
 // Добавление строки
 function addRow() {
-    const title = document.getElementById('newRowTitle').value;
+    const title = document.getElementById('newRowTitle').value.trim();
     
-    if (!title.trim()) {
+    if (!title) {
         alert('Введите название строки');
         return;
     }
@@ -301,138 +292,220 @@ function addRow() {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken'),
+            'X-CSRFToken': getCSRFToken(),
         },
         body: JSON.stringify({
             table_id: TABLE_ID,
             title: title
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) throw new Error('Network error');
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             location.reload();
         } else {
-            alert('Ошибка: ' + data.error);
+            alert(data.error || 'Ошибка добавления строки');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Ошибка добавления строки');
+        alert('Ошибка соединения');
     });
     
-    // Закрываем модальное окно
-    const modal = bootstrap.Modal.getInstance(document.getElementById('addRowModal'));
-    if (modal) modal.hide();
+    // Закрыть модальное окно
+    bootstrap.Modal.getInstance(document.getElementById('addRowModal')).hide();
 }
 
 // Удаление строки
 function deleteRow(rowId) {
     if (!confirm('Удалить эту строку?')) return;
     
-    fetch('/tables/ajax/delete-row/' + rowId + '/', {
+    fetch(`/tables/ajax/delete-row/${rowId}/`, {
         method: 'POST',
         headers: {
-            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken(),
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) throw new Error('Network error');
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             location.reload();
         } else {
-            alert('Ошибка: ' + data.error);
+            alert(data.error || 'Ошибка удаления строки');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Ошибка удаления строки');
+        alert('Ошибка соединения');
     });
 }
 
 // Редактирование ячейки
-function editCell(element) {
-    currentCellId = element.dataset.cellId;
-    const content = element.innerText;
+function editCell(element, rowId, columnId) {
+    currentCellElement = element;
+    currentRowId = rowId;
+    currentColumnId = columnId;
+    
+    // Получаем текущий текст
+    let content = '';
+    if (element.querySelector('.text-muted')) {
+        content = '';
+    } else {
+        content = element.textContent.trim();
+    }
     
     document.getElementById('editCellContent').value = content;
+    
+    // Показываем модальное окно
     const modal = new bootstrap.Modal(document.getElementById('editCellModal'));
     modal.show();
 }
 
 // Сохранение ячейки
 function saveCell() {
-    const content = document.getElementById('editCellContent').value;
+    const content = document.getElementById('editCellContent').value.trim();
     
-    if (!currentCellId) return;
+    if (!currentRowId || !currentColumnId) return;
     
-    const formData = new FormData();
-    formData.append('content', content);
-    
-    fetch('/tables/ajax/update-cell/' + currentCellId + '/', {
+    fetch('/tables/ajax/update-cell/', {
         method: 'POST',
         headers: {
-            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken(),
         },
-        body: formData
+        body: JSON.stringify({
+            table_id: TABLE_ID,
+            row_id: currentRowId,
+            column_id: currentColumnId,
+            content: content
+        })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) throw new Error('Network error');
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
-            const cellElement = document.querySelector('[data-cell-id="' + currentCellId + '"]');
-            if (content.trim()) {
-                cellElement.innerHTML = content.replace(/\n/g, '<br>');
+            // Обновляем содержимое ячейки
+            if (content) {
+                currentCellElement.innerHTML = content.replace(/\n/g, '<br>');
             } else {
-                cellElement.innerHTML = '<span class="text-muted" style="opacity: 0.6;">Нажмите для редактирования</span>';
+                currentCellElement.innerHTML = '<span class="text-muted" style="opacity: 0.6;">Нажмите для редактирования</span>';
             }
             
-            const modal = bootstrap.Modal.getInstance(document.getElementById('editCellModal'));
-            if (modal) modal.hide();
+            // Закрываем модальное окно
+            bootstrap.Modal.getInstance(document.getElementById('editCellModal')).hide();
         } else {
-            alert('Ошибка: ' + data.error);
+            alert(data.error || 'Ошибка сохранения');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Ошибка сохранения ячейки');
+        alert('Ошибка соединения');
     });
 }
 
-// Редактирование колонки (заглушка)
+// Редактирование колонки
 function editColumn(columnId) {
     const newName = prompt('Введите новое название колонки:');
-    if (newName) {
-        alert('Колонка ' + columnId + ' будет переименована в "' + newName + '"\n(функция в разработке)');
+    if (newName && newName.trim()) {
+        fetch('/tables/ajax/edit-column/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+            },
+            body: JSON.stringify({
+                column_id: columnId,
+                name: newName.trim()
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Ошибка: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Ошибка переименования колонки');
+        });
     }
 }
+
+// Двойной клик для редактирования
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.cell-editable').forEach(cell => {
+        cell.addEventListener('dblclick', function() {
+            const rowId = this.getAttribute('data-row-id');
+            const columnId = this.getAttribute('data-column-id');
+            editCell(this, rowId, columnId);
+        });
+    });
+});
 </script>
 
 <style>
+/* Дополнительные стили */
 .table th {
     position: sticky;
     top: 0;
     background-color: #f8f9fa !important;
+    z-index: 10;
 }
 
 #task-table {
     min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
 }
 
 #task-table td, #task-table th {
     vertical-align: top;
+    border: 1px solid #dee2e6;
+}
+
+.cell-editable {
+    min-height: 60px;
+    cursor: pointer;
+    transition: background-color 0.2s;
 }
 
 .cell-editable:hover {
     background-color: #f0f7ff !important;
 }
 
-.modal-content {
-    border: 1px solid #dee2e6;
+.column-header {
+    padding: 8px 12px;
 }
 
 .form-control:focus {
     border-color: #6ba8e0;
     box-shadow: 0 0 0 0.2rem rgba(107, 168, 224, 0.25);
+}
+
+.modal-content {
+    border: 1px solid #dee2e6;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+.btn-outline-primary {
+    border-color: #6ba8e0;
+    color: #6ba8e0;
+}
+
+.btn-outline-primary:hover {
+    background-color: #6ba8e0;
+    border-color: #6ba8e0;
 }
 </style>
 {% endblock %}
