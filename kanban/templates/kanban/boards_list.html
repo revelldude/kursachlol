@@ -5,6 +5,7 @@
 
 {% block content %}
 <div class="container mt-4">
+    {% csrf_token %}
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 style="color: #333;">📋 Мои доски</h1>
         <a href="{% url 'create_board' %}" 
@@ -68,7 +69,7 @@
         <i class="bi bi-kanban" style="font-size: 48px; color: #6ba8e0; margin-bottom: 20px;"></i>
         <h4 style="color: #666;">У вас еще нет досок</h4>
         <p class="text-muted">Создайте свою первую доску для организации задач</p>
-        <a href="{% url 'board_create' %}" 
+        <a href="{% url 'create_board' %}" 
            class="btn btn-lg" 
            style="background: #6ba8e0; color: white; border: none; padding: 12px 30px;">
             + Создать первую доску
@@ -106,15 +107,11 @@
 
 <!-- JavaScript код -->
 <script>
-<script>
 document.addEventListener('DOMContentLoaded', function() {
     let boardToDelete = null;
-    
+    const csrfToken = "{{ csrf_token }}";  
     // Находим все кнопки удаления
     const deleteButtons = document.querySelectorAll('.delete-board-btn');
-    
-    // Получаем CSRF-токен ОДИН РАЗ
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
     
     deleteButtons.forEach(button => {
         button.addEventListener('click', function() {
@@ -135,17 +132,16 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('confirmDeleteBoardBtn').addEventListener('click', function() {
         if (!boardToDelete) return;
         
-        if (!csrfToken) {
-            alert('Ошибка безопасности. Обновите страницу.');
-            return;
-        }
-        
         // Создаем и отправляем форму
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = `/board/${boardToDelete}/delete/`;
         
         // Добавляем CSRF токен
+        document.addEventListener('DOMContentLoaded', function() {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        var value = document.getElementById('someId').value;
+});
         const csrfInput = document.createElement('input');
         csrfInput.type = 'hidden';
         csrfInput.name = 'csrfmiddlewaretoken';
@@ -157,7 +153,6 @@ document.addEventListener('DOMContentLoaded', function() {
         form.submit();
     });
 });
-</script>
 </script>
 
 {% endblock %}

@@ -598,7 +598,7 @@ def board_delete(request, board_id):
     if request.method == 'POST':
         board = get_object_or_404(Board, id=board_id, user=request.user)
         board.delete()
-        return redirect('board_list')
+        return redirect('boards_list')
     
     # Если не POST запрос, показываем подтверждение
     board = get_object_or_404(Board, id=board_id, user=request.user)
