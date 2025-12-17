@@ -1,0 +1,75 @@
+{% extends 'kanban/base.html' %}
+{% load static %}
+
+{% block title %}Создать таблицу{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow" style="border: 1px solid #dee2e6; border-radius: 8px;">
+                <div class="card-header" style="background: #6ba8e0; color: white; border-radius: 8px 8px 0 0;">
+                    <h3 class="card-title mb-0">📋 Создать новую таблицу</h3>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="name" class="form-label" style="color: #333; font-weight: 500;">
+                                Название таблицы *
+                            </label>
+                            <input type="text" 
+                                   name="name" 
+                                   class="form-control" 
+                                   id="name" 
+                                   required
+                                   placeholder="Например: Список задач"
+                                   style="border: 1px solid #6ba8e0; padding: 10px;">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="description" class="form-label" style="color: #333; font-weight: 500;">
+                                Описание (необязательно)
+                            </label>
+                            <textarea name="description" 
+                                      class="form-control" 
+                                      id="description" 
+                                      rows="3"
+                                      placeholder="Краткое описание таблицы"
+                                      style="border: 1px solid #6ba8e0; padding: 10px;"></textarea>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{% url 'table_list' %}" 
+                               class="btn btn-secondary me-md-2" 
+                               style="padding: 10px 20px;">
+                                Отмена
+                            </a>
+                            <button type="submit" 
+                                    class="btn btn-primary" 
+                                    style="background: #6ba8e0; border: none; padding: 10px 20px;">
+                                Создать таблицу
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <div class="card-footer text-muted" style="background: #f8f9fa; border-top: 1px solid #dee2e6;">
+                    <small>
+                        <i class="bi bi-info-circle"></i>
+                        Будет создана таблица с базовыми колонками: "Задача", "Статус", "Срок"
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.form-control:focus {
+    border-color: #6ba8e0;
+    box-shadow: 0 0 0 0.2rem rgba(107, 168, 224, 0.25);
+}
+</style>
+{% endblock %}

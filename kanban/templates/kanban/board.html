@@ -384,6 +384,13 @@
       // Если задача сохранена, загружаем ее файлы
       loadTaskFiles(editingTaskId);
       fetchBoard();  // Обновляем доску
+
+        editModal.style.display = 'none';
+        editingTaskId = null;
+        fileList.innerHTML = '';
+        fileInfo.textContent = '';
+
+        console.log('Задача успешно обновлена:', data);
     })
     .catch(err => {
       console.error('EDIT ERROR:', err);
@@ -398,6 +405,11 @@
       editingTaskId = null;
       fileList.innerHTML = '';
       fileInfo.textContent = '';
+
+      editTitleInput.value = '';
+      editDescInput.value = '';
+      editDeadlineInput.value = '';
+      editColorInput.value = '#008cff';
     }
   });
 
@@ -837,6 +849,29 @@
     return cookieValue;
   }
 
+
+  // В base.html добавьте этот скрипт
+function checkSession() {
+    fetch('/api/check-session/')
+        .then(response => response.json())
+        .then(data => {
+            const currentUsername = "{{ user.username|escapejs }}";
+            
+            if (data.authenticated && data.username !== currentUsername) {
+                // Пользователь изменился
+                if (confirm(`Обнаружен другой пользователь (${data.username}). Выйти и войти заново?`)) {
+                    window.location.href = '{% url "logout" %}';
+                }
+            }
+        })
+        .catch(error => console.error('Ошибка проверки сессии:', error));
+}
+
+// Проверяем сессию каждые 30 секунд
+setInterval(checkSession, 30000);
+
+// Проверяем при загрузке страницы
+document.addEventListener('DOMContentLoaded', checkSession);
   // Загружаем доску при загрузке страницы
   document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM загружен, загружаем доску...');

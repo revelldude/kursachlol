@@ -1,0 +1,438 @@
+{% extends 'kanban/base.html' %}
+{% load static %}
+
+{% block title %}{{ table.name }} - Таблица{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-3">
+    <!-- Заголовок таблицы -->
+    <div class="d-flex justify-content-between align-items-center mb-4" 
+         style="background: white; padding: 20px; border-radius: 8px; border: 1px solid #dee2e6;">
+        <div>
+            <h1 style="color: #333; margin: 0;">{{ table.name }}</h1>
+            {% if table.description %}
+            <p class="text-muted mt-2">{{ table.description }}</p>
+            {% endif %}
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary btn-sm" 
+                    data-bs-toggle="modal" 
+                    data-bs-target="#addColumnModal"
+                    style="border-color: #6ba8e0; color: #6ba8e0;">
+                + Колонка
+            </button>
+            <button class="btn btn-primary btn-sm" 
+                    data-bs-toggle="modal" 
+                    data-bs-target="#addRowModal"
+                    style="background: #6ba8e0; border: none;">
+                + Строка
+            </button>
+            <a href="{% url 'table_list' %}" 
+               class="btn btn-secondary btn-sm">
+                ← К списку
+            </a>
+        </div>
+    </div>
+    
+    <!-- Таблица -->
+    <div class="table-responsive" style="background: white; border-radius: 8px; border: 1px solid #dee2e6;">
+        <table class="table table-bordered mb-0" id="task-table">
+            <thead class="table-light" style="position: sticky; top: 0; z-index: 10; background: #f8f9fa;">
+                <tr>
+                    <th style="width: 50px; min-width: 50px; background: #6ba8e0; color: white; border-color: #6ba8e0;">
+                        #
+                    </th>
+                    
+                    {% for column in columns %}
+                    <!-- Строка 50 - исправленная -->
+                    <th style="border-left: 2px solid #dee2e6;">
+                        <div class="d-flex justify-content-between align-items-center column-header" 
+                             data-column-id="{{ column.id }}"
+                             {% if column.width %}data-column-width="{{ column.width }}"{% endif %}>
+                            <span>{{ column.name }}</span>
+                            <button type="button" 
+                                    class="btn btn-sm btn-outline-secondary"
+                                    onclick="editColumn('{{ column.id }}')"
+                                    style="border: none; padding: 2px 6px; border-radius: 4px; background: #f8f9fa;">
+                                ✏️
+                            </button>
+                        </div>
+                    </th>
+                    {% endfor %}
+                    
+                    <th style="width: 50px; min-width: 50px; border-left: 2px solid #dee2e6;">
+                        <button class="btn btn-sm btn-outline-secondary" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#addColumnModal"
+                                style="border: none; padding: 5px 10px; background: #f8f9fa; border-radius: 4px;">
+                            +
+                        </button>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr style="border-top: 1px solid #dee2e6;">
+                    <td class="text-center text-muted" style="background: #f8f9fa; border-right: 2px solid #dee2e6;">
+                        {{ forloop.counter }}
+                        <button class="btn btn-sm btn-outline-danger ms-1"
+                                onclick="deleteRow('{{ row.id }}')"
+                                style="border: none; padding: 0 5px; font-size: 16px; background: transparent;">
+                            ×
+                        </button>
+                    </td>
+                    
+                    {% for column in columns %}
+                    {% with key=row.id|add:"_"|add:column.id %}
+                    <td class="cell-editable" 
+                        data-cell-id="{{ cells.key.id }}"
+                        onclick="editCell(this)"
+                        style="cursor: pointer; padding: 12px; border-left: 1px solid #dee2e6; min-height: 60px; vertical-align: top;"
+                        onmouseover="this.style.backgroundColor='#f0f7ff'"
+                        onmouseout="this.style.backgroundColor='white'">
+                        {% if cells.key.content %}
+                            {{ cells.key.content|linebreaksbr }}
+                        {% else %}
+                            <span class="text-muted" style="opacity: 0.6;">Нажмите для редактирования</span>
+                        {% endif %}
+                    </td>
+                    {% endwith %}
+                    {% endfor %}
+                    
+                    <td style="background: #f8f9fa; border-left: 2px solid #dee2e6;"></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="{{ columns|length|add:2 }}" class="text-center text-muted py-5">
+                        <div style="font-size: 48px; color: #6ba8e0; display: block; margin-bottom: 15px;">📋</div>
+                        Нет строк в таблице
+                        <div class="mt-3">
+                            <button class="btn btn-primary" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#addRowModal"
+                                    style="background: #6ba8e0; border: none; padding: 8px 16px;">
+                                + Добавить первую строку
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Кнопка добавления строки внизу -->
+    <div class="mt-3">
+        <button class="btn btn-primary" 
+                data-bs-toggle="modal" 
+                data-bs-target="#addRowModal"
+                style="background: #6ba8e0; border: none; padding: 10px 20px;">
+            + Добавить строку
+        </button>
+    </div>
+</div>
+
+<!-- Модальное окно для добавления колонки -->
+<div class="modal fade" id="addColumnModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" style="border-radius: 8px;">
+            <div class="modal-header" style="background: #6ba8e0; color: white; border-radius: 8px 8px 0 0;">
+                <h5 class="modal-title">➕ Добавить колонку</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label" style="color: #333; font-weight: 500;">Название колонки</label>
+                    <input type="text" id="newColumnName" class="form-control" placeholder="Например: Ответственный">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" style="color: #333; font-weight: 500;">Ширина (px)</label>
+                    <input type="number" id="newColumnWidth" class="form-control" value="200" min="50" max="1000">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="addColumn()" style="background: #6ba8e0; border: none;">
+                    Добавить
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для добавления строки -->
+<div class="modal fade" id="addRowModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" style="border-radius: 8px;">
+            <div class="modal-header" style="background: #6ba8e0; color: white; border-radius: 8px 8px 0 0;">
+                <h5 class="modal-title">➕ Добавить строку</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label" style="color: #333; font-weight: 500;">Название строки</label>
+                    <input type="text" id="newRowTitle" class="form-control" placeholder="Например: Новая задача">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="addRow()" style="background: #6ba8e0; border: none;">
+                    Добавить
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для редактирования ячейки -->
+<div class="modal fade" id="editCellModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="border-radius: 8px;">
+            <div class="modal-header" style="background: #6ba8e0; color: white; border-radius: 8px 8px 0 0;">
+                <h5 class="modal-title">✏️ Редактирование</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <textarea class="form-control" id="editCellContent" rows="6" placeholder="Введите содержимое ячейки..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="saveCell()" style="background: #6ba8e0; border: none;">
+                    Сохранить
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Инициализация переменных
+const TABLE_ID = '{{ table.id }}';
+let currentCellId = null;
+
+// Функция для получения CSRF токена
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Устанавливаем ширину колонок после загрузки страницы
+document.addEventListener('DOMContentLoaded', function() {
+    // Устанавливаем ширину для каждой колонки
+    document.querySelectorAll('.column-header').forEach(header => {
+        const width = header.getAttribute('data-column-width');
+        if (width) {
+            header.style.minWidth = width + 'px';
+        }
+    });
+    
+    // Встроенное редактирование по двойному клику
+    document.querySelectorAll('.cell-editable').forEach(cell => {
+        cell.addEventListener('dblclick', function() {
+            editCell(this);
+        });
+    });
+});
+
+// Добавление колонки
+function addColumn() {
+    const name = document.getElementById('newColumnName').value;
+    const width = document.getElementById('newColumnWidth').value;
+    
+    if (!name.trim()) {
+        alert('Введите название колонки');
+        return;
+    }
+    
+    fetch('/tables/ajax/add-column/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: JSON.stringify({
+            table_id: TABLE_ID,
+            name: name,
+            width: parseInt(width)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Ошибка: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Ошибка добавления колонки');
+    });
+    
+    // Закрываем модальное окно
+    const modal = bootstrap.Modal.getInstance(document.getElementById('addColumnModal'));
+    if (modal) modal.hide();
+}
+
+// Добавление строки
+function addRow() {
+    const title = document.getElementById('newRowTitle').value;
+    
+    if (!title.trim()) {
+        alert('Введите название строки');
+        return;
+    }
+    
+    fetch('/tables/ajax/add-row/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: JSON.stringify({
+            table_id: TABLE_ID,
+            title: title
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Ошибка: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Ошибка добавления строки');
+    });
+    
+    // Закрываем модальное окно
+    const modal = bootstrap.Modal.getInstance(document.getElementById('addRowModal'));
+    if (modal) modal.hide();
+}
+
+// Удаление строки
+function deleteRow(rowId) {
+    if (!confirm('Удалить эту строку?')) return;
+    
+    fetch('/tables/ajax/delete-row/' + rowId + '/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Ошибка: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Ошибка удаления строки');
+    });
+}
+
+// Редактирование ячейки
+function editCell(element) {
+    currentCellId = element.dataset.cellId;
+    const content = element.innerText;
+    
+    document.getElementById('editCellContent').value = content;
+    const modal = new bootstrap.Modal(document.getElementById('editCellModal'));
+    modal.show();
+}
+
+// Сохранение ячейки
+function saveCell() {
+    const content = document.getElementById('editCellContent').value;
+    
+    if (!currentCellId) return;
+    
+    const formData = new FormData();
+    formData.append('content', content);
+    
+    fetch('/tables/ajax/update-cell/' + currentCellId + '/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const cellElement = document.querySelector('[data-cell-id="' + currentCellId + '"]');
+            if (content.trim()) {
+                cellElement.innerHTML = content.replace(/\n/g, '<br>');
+            } else {
+                cellElement.innerHTML = '<span class="text-muted" style="opacity: 0.6;">Нажмите для редактирования</span>';
+            }
+            
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editCellModal'));
+            if (modal) modal.hide();
+        } else {
+            alert('Ошибка: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Ошибка сохранения ячейки');
+    });
+}
+
+// Редактирование колонки (заглушка)
+function editColumn(columnId) {
+    const newName = prompt('Введите новое название колонки:');
+    if (newName) {
+        alert('Колонка ' + columnId + ' будет переименована в "' + newName + '"\n(функция в разработке)');
+    }
+}
+</script>
+
+<style>
+.table th {
+    position: sticky;
+    top: 0;
+    background-color: #f8f9fa !important;
+}
+
+#task-table {
+    min-width: 100%;
+}
+
+#task-table td, #task-table th {
+    vertical-align: top;
+}
+
+.cell-editable:hover {
+    background-color: #f0f7ff !important;
+}
+
+.modal-content {
+    border: 1px solid #dee2e6;
+}
+
+.form-control:focus {
+    border-color: #6ba8e0;
+    box-shadow: 0 0 0 0.2rem rgba(107, 168, 224, 0.25);
+}
+</style>
+{% endblock %}

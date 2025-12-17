@@ -3,6 +3,7 @@ import os
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django.conf import settings 
 
 def task_file_path(instance, filename):
     """Генерирует путь для файлов задач"""
@@ -56,3 +57,55 @@ class TaskFile(models.Model):
     
     def __str__(self):
         return f"{self.original_filename} ({self.task.title})"
+    
+class TaskTable(models.Model):
+    """Модель для таблиц задач"""
+    name = models.CharField(max_length=200, verbose_name="Название таблицы")
+    description = models.TextField(blank=True, verbose_name="Описание")
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='tables')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return self.name
+
+class TaskColumn(models.Model):
+    """Колонка в таблице"""
+    table = models.ForeignKey(TaskTable, on_delete=models.CASCADE, related_name='columns')
+    name = models.CharField(max_length=100, verbose_name="Название колонки")
+    width = models.IntegerField(default=200, verbose_name="Ширина (px)")
+    order = models.IntegerField(default=0, verbose_name="Порядок")
+    
+    class Meta:
+        ordering = ['order']
+    
+    def __str__(self):
+        return f"{self.table.name} - {self.name}"
+
+class TaskRow(models.Model):
+    """Строка в таблице"""
+    table = models.ForeignKey(TaskTable, on_delete=models.CASCADE, related_name='rows')
+    title = models.CharField(max_length=200, verbose_name="Название строки")
+    order = models.IntegerField(default=0, verbose_name="Порядок")
+    
+    class Meta:
+        ordering = ['order']
+    
+    def __str__(self):
+        return self.title
+
+class TaskCell(models.Model):
+    """Ячейка таблицы"""
+    row = models.ForeignKey(TaskRow, on_delete=models.CASCADE, related_name='cells')
+    column = models.ForeignKey(TaskColumn, on_delete=models.CASCADE, related_name='cells')
+    content = models.TextField(blank=True, verbose_name="Содержимое")
+    
+    class Meta:
+        unique_together = ['row', 'column']
+    
+    def __str__(self):
+        return f"{self.row.title} - {self.column.name}"
+    

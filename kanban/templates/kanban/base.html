@@ -225,63 +225,55 @@ nav {
     z-index: 10001 !important; /* Выше чем модальный фон */
     position: relative;
 }
-
+    
 /* Кнопки удаления в задачах */
   </style>
 </head>
 <body>
   <!-- В навигации base.html -->
+<!-- Исправленная навигация -->
 <nav style="background: #6ba8e0; padding: 10px 0; width: 100%;">
   <div style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 0 20px;">
     
     <div style="display: flex; gap: 20px;">
-      <a href="{% url 'index' %}" 
+      <a href="/" 
          style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px;" 
          onmouseover="this.style.background='#5a97d0'" 
          onmouseout="this.style.background='transparent'">
-        Главная
+        🏠 Главная
       </a>
-      <a href="{% url 'boards_list' %}"
+
+      <a href="/boards/list/"
          style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px;"
          onmouseover="this.style.background='#5a97d0'" 
          onmouseout="this.style.background='transparent'">
         Мои доски
       </a>
-      <a href="{% url 'kanban-boards' %}"
+      
+      <a href="/tables/"
+         style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px;"
+         onmouseover="this.style.background='#5a97d0'" 
+         onmouseout="this.style.background='transparent'">
+        📋 Мои таблицы
+      </a>
+      
+      <a href="/boards/"
          style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px;"
          onmouseover="this.style.background='#5a97d0'" 
          onmouseout="this.style.background='transparent'">
         Создать доску
       </a>
-      <a href="{% url 'index' %}" 
-   style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px;" 
-   onmouseover="this.style.background='#5a97d0'" 
-   onmouseout="this.style.background='transparent'">
-    🏠 Главная
-</a>
     </div>
     
     <div>
-      {% if user.is_authenticated %}
-        <span style="color: white; margin-right: 15px;">Привет, {{ user.username }}!</span>
-        <a href="{% url 'logout' %}" 
-           style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; background: #dc3545;"
-           onmouseover="this.style.background='#c82333'" 
-           onmouseout="this.style.background='#dc3545'">
-          Выйти
-        </a>
-      {% else %}
-        <a href="{% url 'login' %}" 
-           style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; margin-right: 10px;">
-          Войти
-        </a>
-        <a href="{% url 'register' %}" 
-           style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; background: #28a745;">
-          Регистрация
-        </a>
-      {% endif %}
+      <span style="color: white; margin-right: 15px;">Привет, aleks!</span>
+      <a href="/logout/" 
+         style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; background: #dc3545;"
+         onmouseover="this.style.background='#c82333'" 
+         onmouseout="this.style.background='#dc3545'">
+        Выйти
+      </a>
     </div>
-    
   </div>
 </nav>
   {% block content %}
@@ -289,5 +281,24 @@ nav {
 
   {% block scripts %}
   {% endblock %}
+  <script>
+    // Базовая проверка сессии для всех страниц
+    document.addEventListener('DOMContentLoaded', function() {
+        // Проверяем, не произошла ли смена пользователя
+        if ("{{ user.is_authenticated }}" === "True") {
+            // Делаем проверку каждые 2 минуты
+            setInterval(function() {
+                fetch('/api/check-session/')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.authenticated && data.username !== "{{ user.username|escapejs }}") {
+                            // Пользователь изменился - принудительно выходим
+                            window.location.href = '{% url "logout" %}';
+                        }
+                    });
+            }, 120000); // 2 минуты
+        }
+    });
+</script>
 </body>
 </html>

@@ -10,9 +10,9 @@ from rest_framework import status as http_status
 from rest_framework import status 
 from rest_framework.permissions import IsAuthenticated
 from django.http import HttpResponse, JsonResponse
-from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.csrf import ensure_csrf_cookie, csrf_protect
 from datetime import date
-from .models import Board, Status, Task, TaskFile
+from .models import Board, Status, Task, TaskFile, TaskTable, TaskColumn, TaskRow, TaskCell
 from .serializers import StatusSerializer, TaskSerializer, TaskFileSerializer
 from django.core import serializers
 from datetime import datetime, timedelta
@@ -21,7 +21,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 import os
-
+import json
 
 # ===== АУТЕНТИФИКАЦИЯ =====
 
@@ -88,6 +88,23 @@ def kanban_board(request):
 def boards_list(request):
     boards = Board.objects.filter(user=request.user).order_by('-created_at')
     return render(request, 'kanban/boards_list.html', {'boards': boards})
+
+@login_required
+def check_session_api(request):
+    """API для проверки состояния сессии пользователя"""
+    try:
+        return JsonResponse({
+            'authenticated': request.user.is_authenticated,
+            'username': request.user.username if request.user.is_authenticated else None,
+            'user_id': request.user.id if request.user.is_authenticated else None,
+            'session_key': request.session.session_key,
+            'session_expiry': request.session.get_expiry_age() if request.session.session_key else None,
+        })
+    except Exception as e:
+        return JsonResponse({
+            'authenticated': False,
+            'error': str(e)
+        }, status=500)
 
 @login_required
 def create_board(request):
@@ -311,6 +328,194 @@ def upcoming_deadlines_api(request):
         
     except Board.DoesNotExist:
         return JsonResponse({'error': 'Board not found or no access'}, status=404)
+    
+
+
+@login_required
+def table_list(request):
+    """Список всех таблиц пользователя"""
+    tables = TaskTable.objects.filter(owner=request.user)
+    return render(request, 'kanban/tables_list.html', {'tables': tables})
+
+@login_required
+def table_create(request):
+    """Создание новой таблицы"""
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        description = request.POST.get('description', '')
+        
+        if name:
+            table = TaskTable.objects.create(
+                name=name,
+                description=description,
+                owner=request.user
+            )
+            
+            # Создаем базовые колонки
+            TaskColumn.objects.create(table=table, name='Задача', width=300, order=0)
+            TaskColumn.objects.create(table=table, name='Статус', width=150, order=1)
+            TaskColumn.objects.create(table=table, name='Срок', width=120, order=2)
+            
+            # Создаем первую строку-пример
+            TaskRow.objects.create(table=table, title='Пример задачи', order=0)
+            
+            return redirect('table_detail', table_id=table.id)
+    
+    return render(request, 'kanban/table_create.html')
+
+@login_required
+def table_detail(request, table_id):
+    """Просмотр и редактирование таблицы"""
+    table = get_object_or_404(TaskTable, id=table_id, owner=request.user)
+    columns = table.columns.all().order_by('order')
+    rows = table.rows.all().order_by('order')
+    
+    # Получаем все ячейки
+    cells = {}
+    for row in rows:
+        for column in columns:
+            cell, created = TaskCell.objects.get_or_create(
+                row=row,
+                column=column,
+                defaults={'content': ''}
+            )
+            cells[f"{row.id}_{column.id}"] = cell
+    
+    return render(request, 'kanban/table_detail.html', {
+        'table': table,
+        'columns': columns,
+        'rows': rows,
+        'cells': cells,
+    })
+
+@login_required
+def add_column_ajax(request):
+    """AJAX: Добавление колонки"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            table_id = data.get('table_id')
+            name = data.get('name')
+            width = data.get('width', 200)
+            
+            table = get_object_or_404(TaskTable, id=table_id, owner=request.user)
+            
+            # Определяем порядок
+            last_column = table.columns.order_by('-order').first()
+            order = (last_column.order + 1) if last_column else 0
+            
+            column = TaskColumn.objects.create(
+                table=table,
+                name=name,
+                width=width,
+                order=order
+            )
+            
+            # Создаем ячейки для всех строк
+            for row in table.rows.all():
+                TaskCell.objects.create(row=row, column=column, content='')
+            
+            return JsonResponse({
+                'success': True,
+                'column': {
+                    'id': column.id,
+                    'name': column.name,
+                    'width': column.width,
+                    'order': column.order
+                }
+            })
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request'})
+
+@login_required
+def add_row_ajax(request):
+    """AJAX: Добавление строки"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            table_id = data.get('table_id')
+            title = data.get('title')
+            
+            table = get_object_or_404(TaskTable, id=table_id, owner=request.user)
+            
+            # Определяем порядок
+            last_row = table.rows.order_by('-order').first()
+            order = (last_row.order + 1) if last_row else 0
+            
+            row = TaskRow.objects.create(
+                table=table,
+                title=title,
+                order=order
+            )
+            
+            # Создаем ячейки для всех колонок
+            for column in table.columns.all():
+                TaskCell.objects.create(row=row, column=column, content='')
+            
+            return JsonResponse({
+                'success': True,
+                'row': {
+                    'id': row.id,
+                    'title': row.title,
+                    'order': row.order
+                }
+            })
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request'})
+
+@login_required
+def delete_row_ajax(request, row_id):
+    """AJAX: Удаление строки"""
+    if request.method == 'POST':
+        try:
+            row = get_object_or_404(TaskRow, id=row_id)
+            if row.table.owner != request.user:
+                return JsonResponse({'success': False, 'error': 'Нет доступа'})
+            
+            row.delete()
+            return JsonResponse({'success': True})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request'})
+
+@login_required
+def update_cell_ajax(request, cell_id):
+    """AJAX: Обновление ячейки"""
+    if request.method == 'POST':
+        try:
+            cell = get_object_or_404(TaskCell, id=cell_id)
+            if cell.row.table.owner != request.user:
+                return JsonResponse({'success': False, 'error': 'Нет доступа'})
+            
+            content = request.POST.get('content', '')
+            cell.content = content
+            cell.save()
+            
+            return JsonResponse({'success': True})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request'})
+
+@login_required
+def delete_table_ajax(request, table_id):
+    """AJAX: Удаление таблицы"""
+    if request.method == 'POST':
+        try:
+            table = get_object_or_404(TaskTable, id=table_id, owner=request.user)
+            table.delete()
+            return JsonResponse({'success': True})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request'})
+
+
 
 @login_required
 def tasks_by_date_and_board_api(request):
@@ -349,6 +554,7 @@ def tasks_by_date_and_board_api(request):
     except ValueError:
         return JsonResponse({'error': 'Invalid date format'}, status=400)
 
+    
 class StatusList(APIView):
     permission_classes = [IsAuthenticated]
     

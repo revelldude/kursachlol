@@ -1,0 +1,139 @@
+{% extends 'kanban/base.html' %}
+{% load static %}
+
+{% block title %}Мои таблицы{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 style="color: #333;">📋 Мои таблицы</h1>
+        <a href="{% url 'table_create' %}" 
+           class="btn btn-primary" 
+           style="background: #6ba8e0; border: none; padding: 10px 20px;">
+            + Создать таблицу
+        </a>
+    </div>
+    
+    {% if tables %}
+    <div class="row">
+        {% for table in tables %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow-sm" style="border: 1px solid #dee2e6; border-radius: 8px;">
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title" style="color: #333; margin-bottom: 10px;">
+                        {{ table.name }}
+                    </h5>
+                    
+                    {% if table.description %}
+                    <p class="card-text text-muted flex-grow-1" style="font-size: 14px;">
+                        {{ table.description|truncatechars:100 }}
+                    </p>
+                    {% endif %}
+                    
+                    <div class="mt-auto">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="bi bi-calendar"></i> {{ table.created_at|date:"d.m.Y" }}
+                            </small>
+                            <span class="badge bg-light text-dark">
+                                {{ table.rows.count }} задач
+                            </span>
+                        </div>
+                        
+                        <div class="d-grid gap-2 mt-3">
+                            <a href="{% url 'table_detail' table.id %}" 
+                               class="btn btn-sm" 
+                               style="background: #6ba8e0; color: white; border: none;">
+                                Открыть таблицу
+                            </a>
+                            <button class="btn btn-sm btn-outline-danger delete-table-btn"
+                                    data-table-id="{{ table.id }}">
+                                Удалить
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5" style="background: white; border-radius: 8px; border: 2px dashed #dee2e6;">
+        <i class="bi bi-table" style="font-size: 48px; color: #6ba8e0; margin-bottom: 20px;"></i>
+        <h4 style="color: #666;">У вас еще нет таблиц</h4>
+        <p class="text-muted">Создайте свою первую таблицу для организации задач</p>
+        <a href="{% url 'table_create' %}" 
+           class="btn btn-lg" 
+           style="background: #6ba8e0; color: white; border: none; padding: 12px 30px;">
+            + Создать первую таблицу
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// Ждем загрузки DOM
+document.addEventListener('DOMContentLoaded', function() {
+    // Находим все кнопки удаления
+    const deleteButtons = document.querySelectorAll('.delete-table-btn');
+    
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const tableId = this.getAttribute('data-table-id');
+            deleteTable(tableId);
+        });
+    });
+});
+
+function deleteTable(tableId) {
+    if (confirm('Удалить эту таблицу? Все данные будут потеряны.')) {
+        // Формируем URL
+        const url = '/tables/' + tableId + '/delete/';
+        
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Ошибка: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Ошибка удаления таблицы');
+        });
+    }
+}
+
+// Функция для получения CSRF токена
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+
+<style>
+.card:hover {
+    transform: translateY(-5px);
+    transition: transform 0.2s;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
+}
+</style>
+{% endblock %}
