@@ -1,34 +1,163 @@
 {% extends 'kanban/base.html' %}
+{% load static %}
 
-{% block title %}ПЛАНИРОВЩИК ЗАДАЧ - Мои доски{% endblock %}
+{% block title %}Мои доски{% endblock %}
 
 {% block content %}
-<h1>Мои доски</h1>
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 style="color: #333;">📋 Мои доски</h1>
+        <a href="{% url 'create_board' %}" 
+           class="btn btn-primary" 
+           style="background: #6ba8e0; border: none; padding: 10px 20px;">
+            + Создать доску
+        </a>
+    </div>
+    
+    {% if boards %}
+    <div class="row">
+        {% for board in boards %}
+<div class="col-md-4 mb-4">
+    <div class="card h-100 shadow-sm" style="border: 1px solid #dee2e6; border-radius: 8px;">
+        <div class="card-body d-flex flex-column">
+            <h5 class="card-title" style="color: #333; margin-bottom: 10px;">
+                {{ board.name }}
+            </h5>
+            
+            <div class="text-muted mb-3">
+                <small>
+                    <i class="bi bi-calendar"></i> 
+                    Создана: {{ board.created_at|date:"d.m.Y" }}
+                </small>
+            </div>
+            
+            <div class="mt-auto">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="badge bg-light text-dark">
+                        📊 {{ board.statuses.count }} статусов
+                    </span>
+                    <span class="badge bg-light text-dark">
+                        📝 {{ board.tasks.count }} задач
+                    </span>
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <!-- Кнопка "Открыть доску" -->
+                    <a href="{% url 'board_view' board.id %}" 
+                       class="btn btn-sm" 
+                       style="background: #6ba8e0; color: white; border: none;">
+                        Открыть доску
+                    </a>
+                    
+                    <!-- КНОПКА УДАЛЕНИЯ - ВОТ СЮДА -->
+                    <button type="button" 
+                            class="btn btn-sm btn-outline-danger delete-board-btn"
+                            data-board-id="{{ board.id }}"
+                            data-board-name="{{ board.name }}">
+                        Удалить доску
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5" style="background: white; border-radius: 8px; border: 2px dashed #dee2e6;">
+        <i class="bi bi-kanban" style="font-size: 48px; color: #6ba8e0; margin-bottom: 20px;"></i>
+        <h4 style="color: #666;">У вас еще нет досок</h4>
+        <p class="text-muted">Создайте свою первую доску для организации задач</p>
+        <a href="{% url 'board_create' %}" 
+           class="btn btn-lg" 
+           style="background: #6ba8e0; color: white; border: none; padding: 12px 30px;">
+            + Создать первую доску
+        </a>
+    </div>
+    {% endif %}
+</div>
 
-<a href="{% url 'kanban-boards' %}" style="padding: 10px 20px; background: #4CAF50; color: white; text-decoration: none; border-radius: 4px; display: inline-block; margin-bottom: 20px;">
-    ➕ Создать новую доску
-</a>
+<!-- Модальное окно подтверждения удаления -->
+    <div class="modal fade" id="deleteBoardModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" style="border-radius: 8px;">
+            <div class="modal-header" style="background: #dc3545; color: white; border-radius: 8px 8px 0 0;">
+                <h5 class="modal-title">🗑️ Удаление доски</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    Вы собираетесь удалить доску: <strong id="boardNameToDelete"></strong>
+                    <hr>
+                    <p class="mb-0">❗ Это действие <strong>необратимо</strong>. Все задачи будут удалены.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBoardBtn">
+                    Удалить доску
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
-{% if boards %}
-<ul style="list-style: none; padding: 0;">
-  {% for board in boards %}
-    <li style="margin-bottom: 15px; padding: 15px; background: #ffffffd0; border-radius: 5px;">
-      <a href="{% url 'board_view' board.id %}" style="font-size: 18px; color: #0066cc; text-decoration: none; font-weight: bold;">
-        {{ board.name }}
-      </a>
-      <div style="font-size: 14px; color: #666; margin-top: 5px;">
-        Создано: {{ board.created_at|date:"d.m.Y H:i" }}
-      </div>
-    </li>
-  {% endfor %}
-</ul>
-{% else %}
-  <div style="padding: 20px; background: #ffffffd0; border-radius: 5px; text-align: center;">
-    <p>Пока нет ни одной доски</p>
-    <a href="{% url 'kanban-boards' %}" style="padding: 10px 20px; background: #4CAF50; color: white; text-decoration: none; border-radius: 4px;">
-      Создать первую доску
-    </a>
-  </div>
-{% endif %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- JavaScript код -->
+<script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let boardToDelete = null;
+    
+    // Находим все кнопки удаления
+    const deleteButtons = document.querySelectorAll('.delete-board-btn');
+    
+    // Получаем CSRF-токен ОДИН РАЗ
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Получаем ID и название доски
+            boardToDelete = this.getAttribute('data-board-id');
+            const boardName = this.getAttribute('data-board-name');
+            
+            // Показываем название доски в модальном окне
+            document.getElementById('boardNameToDelete').textContent = boardName;
+            
+            // Показываем модальное окно
+            const modal = new bootstrap.Modal(document.getElementById('deleteBoardModal'));
+            modal.show();
+        });
+    });
+    
+    // Обработчик для кнопки подтверждения удаления
+    document.getElementById('confirmDeleteBoardBtn').addEventListener('click', function() {
+        if (!boardToDelete) return;
+        
+        if (!csrfToken) {
+            alert('Ошибка безопасности. Обновите страницу.');
+            return;
+        }
+        
+        // Создаем и отправляем форму
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/board/${boardToDelete}/delete/`;
+        
+        // Добавляем CSRF токен
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrfToken;
+        form.appendChild(csrfInput);
+        
+        // Отправляем форму
+        document.body.appendChild(form);
+        form.submit();
+    });
+});
+</script>
+</script>
 
 {% endblock %}

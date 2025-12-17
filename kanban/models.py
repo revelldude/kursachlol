@@ -109,3 +109,4 @@ class TaskCell(models.Model):
     def __str__(self):
         return f"{self.row.title} - {self.column.name}"
     
+    

@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, redirect, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
@@ -10,13 +10,14 @@ from rest_framework import status as http_status
 from rest_framework import status 
 from rest_framework.permissions import IsAuthenticated
 from django.http import HttpResponse, JsonResponse
-from django.views.decorators.csrf import ensure_csrf_cookie, csrf_protect
+from django.views.decorators.csrf import ensure_csrf_cookie, csrf_protect, csrf_exempt
 from datetime import date
 from .models import Board, Status, Task, TaskFile, TaskTable, TaskColumn, TaskRow, TaskCell
 from .serializers import StatusSerializer, TaskSerializer, TaskFileSerializer
 from django.core import serializers
 from datetime import datetime, timedelta
 from django.utils import timezone
+from django.db import transaction
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
@@ -365,27 +366,25 @@ def table_create(request):
 
 @login_required
 def table_detail(request, table_id):
-    """Просмотр и редактирование таблицы"""
+    # Используйте TaskTable вместо Table
     table = get_object_or_404(TaskTable, id=table_id, owner=request.user)
-    columns = table.columns.all().order_by('order')
-    rows = table.rows.all().order_by('order')
+    columns = table.columns.all()
+    rows = table.rows.all()
     
-    # Получаем все ячейки
-    cells = {}
-    for row in rows:
-        for column in columns:
-            cell, created = TaskCell.objects.get_or_create(
-                row=row,
-                column=column,
-                defaults={'content': ''}
-            )
-            cells[f"{row.id}_{column.id}"] = cell
+    # Получаем все ячейки для этой таблицы
+    cells = TaskCell.objects.filter(row__table=table).select_related('row', 'column')
+    
+    # Преобразуем в словарь для удобства доступа в шаблоне
+    cells_dict = {}
+    for cell in cells:
+        key = f"{cell.row.id}-{cell.column.id}"
+        cells_dict[key] = cell.content
     
     return render(request, 'kanban/table_detail.html', {
         'table': table,
         'columns': columns,
         'rows': rows,
-        'cells': cells,
+        'cells': cells_dict,
     })
 
 @login_required
@@ -484,23 +483,43 @@ def delete_row_ajax(request, row_id):
     return JsonResponse({'success': False, 'error': 'Invalid request'})
 
 @login_required
-def update_cell_ajax(request, cell_id):
-    """AJAX: Обновление ячейки"""
+def ajax_update_cell(request):
     if request.method == 'POST':
         try:
-            cell = get_object_or_404(TaskCell, id=cell_id)
-            if cell.row.table.owner != request.user:
-                return JsonResponse({'success': False, 'error': 'Нет доступа'})
+            import json
+            data = json.loads(request.body)
             
-            content = request.POST.get('content', '')
-            cell.content = content
-            cell.save()
+            table_id = data.get('table_id')
+            row_id = data.get('row_id')
+            column_id = data.get('column_id')
+            content = data.get('content', '')
             
-            return JsonResponse({'success': True})
+            # Проверяем права доступа
+            table = get_object_or_404(TaskTable, id=table_id, owner=request.user)
+            row = get_object_or_404(TaskRow, id=row_id, table=table)
+            column = get_object_or_404(TaskColumn, id=column_id, table=table)
+            
+            # Находим или создаем ячейку
+            cell, created = TaskCell.objects.get_or_create(
+                row=row,
+                column=column,
+                defaults={'content': content}
+            )
+            
+            if not created:
+                cell.content = content
+                cell.save()
+            
+            return JsonResponse({
+                'success': True,
+                'cell_id': cell.id,
+                'content': cell.content
+            })
+            
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
     
-    return JsonResponse({'success': False, 'error': 'Invalid request'})
+    return JsonResponse({'success': False, 'error': 'Invalid request method'})
 
 @login_required
 def delete_table_ajax(request, table_id):
@@ -572,6 +591,18 @@ class StatusList(APIView):
 
         serializer = StatusSerializer(statuses, many=True)
         return Response(serializer.data, status=http_status.HTTP_200_OK)
+    
+@login_required
+def board_delete(request, board_id):
+    """Удаление доски"""
+    if request.method == 'POST':
+        board = get_object_or_404(Board, id=board_id, user=request.user)
+        board.delete()
+        return redirect('board_list')
+    
+    # Если не POST запрос, показываем подтверждение
+    board = get_object_or_404(Board, id=board_id, user=request.user)
+    return render(request, 'kanban/board_delete.html', {'board': board})
 
 class TaskCreate(APIView):
     permission_classes = [IsAuthenticated]

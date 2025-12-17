@@ -1,0 +1,50 @@
+{% extends 'kanban/base.html' %}
+
+{% block title %}Удаление доски - {{ board.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow" style="border: 1px solid #dee2e6; border-radius: 8px;">
+                <div class="card-header" style="background: #dc3545; color: white; border-radius: 8px 8px 0 0;">
+                    <h3 class="card-title mb-0">🗑️ Удаление доски</h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger">
+                        <h4 class="alert-heading">Внимание!</h4>
+                        <p>Вы собираетесь удалить доску: <strong>{{ board.name }}</strong></p>
+                        <hr>
+                        <p class="mb-0">
+                            ❗ Это действие <strong>необратимо</strong>. 
+                            Все задачи и статусы в этой доске будут удалены.
+                        </p>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <p>Доска создана: {{ board.created_at|date:"d.m.Y H:i" }}</p>
+                        <p>Статусов в доске: {{ board.statuses.count }}</p>
+                        <p>Задач в доске: {{ board.tasks.count }}</p>
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{% url 'board_list' %}" 
+                               class="btn btn-secondary me-md-2" 
+                               style="padding: 10px 20px;">
+                                Отмена
+                            </a>
+                            <button type="submit" 
+                                    class="btn btn-danger" 
+                                    style="padding: 10px 20px;">
+                                Да, удалить доску
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

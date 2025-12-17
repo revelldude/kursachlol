@@ -11,7 +11,7 @@ from .views import (
     tasks_by_date_and_board_api, check_session_api,
     table_list, table_create, table_detail,
     add_column_ajax, add_row_ajax, delete_row_ajax, 
-    update_cell_ajax, delete_table_ajax
+    ajax_update_cell, delete_table_ajax
 )
 
 urlpatterns = [
@@ -29,6 +29,7 @@ urlpatterns = [
     path('boards/create/', create_board, name='create_board'),
     path('boards/list/', boards_list, name='boards_list'),
     path('board/<int:board_id>/', board_view, name='board_view'),
+    path('board/<int:board_id>/delete/', views.board_delete, name='board_delete'), 
     
     # API эндпоинты
     path('api/statuses/', StatusList.as_view(), name='status-list'),
@@ -51,6 +52,6 @@ urlpatterns = [
     # AJAX для таблиц
     path('tables/ajax/add-column/', views.add_column_ajax, name='add_column_ajax'),
     path('tables/ajax/add-row/', views.add_row_ajax, name='add_row_ajax'),
+    path('tables/ajax/update-cell/', views.ajax_update_cell, name='ajax_update_cell'),
     path('tables/ajax/delete-row/<int:row_id>/', views.delete_row_ajax, name='delete_row_ajax'),
-    path('tables/ajax/update-cell/<int:cell_id>/', views.update_cell_ajax, name='update_cell_ajax'),
 ]

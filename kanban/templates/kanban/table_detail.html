@@ -68,7 +68,7 @@
                     </th>
                 </tr>
             </thead>
-            <tbody>
+                        <tbody>
                 {% for row in rows %}
                 <tr style="border-top: 1px solid #dee2e6;" data-row-id="{{ row.id }}">
                     <td class="text-center text-muted" style="background: #f8f9fa; border-right: 2px solid #dee2e6;">
@@ -81,7 +81,6 @@
                     </td>
                     
                     {% for column in columns %}
-                    {% with cell_key=row.id|stringformat:"s"|add:"-"|add:column.id|stringformat:"s" %}
                     <td class="cell-editable" 
                         onclick="editCell(this, '{{ row.id }}', '{{ column.id }}')"
                         style="cursor: pointer; padding: 12px; border-left: 1px solid #dee2e6; min-height: 60px; vertical-align: top;"
@@ -89,13 +88,23 @@
                         onmouseout="this.style.backgroundColor='white'"
                         data-row-id="{{ row.id }}"
                         data-column-id="{{ column.id }}">
-                        {% if cells and cells|get_item:cell_key %}
-                            {{ cells|get_item:cell_key|linebreaksbr }}
-                        {% else %}
-                            <span class="text-muted" style="opacity: 0.6;">Нажмите для редактирования</span>
-                        {% endif %}
+                        {% comment %} Ищем ячейку для этой строки и колонки {% endcomment %}
+                        {% with cell_found=False %}
+                            {% for cell in cells %}
+                                {% if cell.row.id == row.id and cell.column.id == column.id %}
+                                    {% if cell.content %}
+                                        {{ cell.content|linebreaksbr }}
+                                    {% else %}
+                                        <span class="text-muted" style="opacity: 0.6;">Нажмите для редактирования</span>
+                                    {% endif %}
+                                    {% with cell_found=True %}{% endwith %}
+                                {% endif %}
+                            {% endfor %}
+                            {% if not cell_found %}
+                                <span class="text-muted" style="opacity: 0.6;">Нажмите для редактирования</span>
+                            {% endif %}
+                        {% endwith %}
                     </td>
-                    {% endwith %}
                     {% endfor %}
                     
                     <td style="background: #f8f9fa; border-left: 2px solid #dee2e6;"></td>
@@ -369,12 +378,14 @@ function editCell(element, rowId, columnId) {
 }
 
 // Сохранение ячейки
+// Обновление ячейки
 function saveCell() {
     const content = document.getElementById('editCellContent').value.trim();
     
     if (!currentRowId || !currentColumnId) return;
     
-    fetch('/tables/ajax/update-cell/', {
+    // Используйте правильный URL через Django template tag
+    fetch("{% url 'ajax_update_cell' %}", {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -408,7 +419,7 @@ function saveCell() {
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Ошибка соединения');
+        alert('Ошибка соединения. Проверьте консоль браузера (F12).');
     });
 }
 
